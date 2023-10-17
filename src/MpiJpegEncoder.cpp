@@ -742,7 +742,7 @@ bool MpiJpegEncoder::encodeThumb(EncInInfo *aInfoIn, uint8_t **data, int *len)
     mpp_frame_set_buffer(inFrm, inFrmBuf);
 
     /* allocate output packet buffer */
-    ret = mpp_buffer_get(mMemGroup, &outPktBuf, width * height);
+    ret = mpp_buffer_get(mMemGroup, &outPktBuf, width * height * 2);
     if (MPP_OK != ret) {
         ALOGE("failed to get buffer for output packet ret %d", ret);
         goto END;
