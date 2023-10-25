@@ -242,7 +242,7 @@ MPP_RET CommonUtil::cropImage(int src, int dst,
                               int src_wstride, int src_hstride,
                               int dst_width, int dst_height)
 {
-    int ret = 0;
+    MPP_RET ret = MPP_OK;
     int srcFormat, dstFormat;
     rga_info_t rgasrc, rgadst;
     rga_buffer_handle_t srcHdl;
@@ -269,16 +269,15 @@ MPP_RET CommonUtil::cropImage(int src, int dst,
     rga_set_rect(&rgadst.rect, 0, 0, dst_width, dst_height,
                  dst_width, dst_height, dstFormat);
 
-    ret = rkRga.RkRgaBlit(&rgasrc, &rgadst, NULL);
-    if (ret) {
-        ALOGE("failed to rga blit ret %d", ret);
-        return MPP_NOK;
+    if (rkRga.RkRgaBlit(&rgasrc, &rgadst, NULL)) {
+        ALOGE("failed to rga blit");
+        ret = MPP_NOK;
     }
 
     freeRgaBuffer(srcHdl);
     freeRgaBuffer(dstHdl);
 
-    return MPP_OK;
+    return ret;
 }
 
 MPP_RET CommonUtil::readImage(char *src, char *dst,
