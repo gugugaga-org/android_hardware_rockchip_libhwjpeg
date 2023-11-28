@@ -86,7 +86,7 @@ public:
 
     void updateEncodeQuality(int quant);
     bool updateEncodeCfg(int width, int height,
-                         InputFormat fmt = INPUT_FMT_YUV420SP, int qLvl = 8,
+                         InputFormat fmt = INPUT_FMT_YUV420SP, int qLvl = 80,
                          int wstride = 0, int hstride = 0);
 
     /*
@@ -122,7 +122,7 @@ private:
     int             mVerStride;
     InputFormat     mFmt;
 
-     /* coding quality - range from (1 - 10) */
+     /* coding quality - range from (10 ~ 100) */
     int             mEncodeQuality;
 
     MppBufferGroup  mMemGroup;
@@ -141,12 +141,12 @@ private:
 
     int getFrameSize(InputFormat fmt, int width, int height);
 
-    MPP_RET runFrameEnc(MppFrame inFrm, MppPacket outPkt);
+    bool runFrameEnc(MppFrame inFrm, MppPacket &outPkt);
 
-    MPP_RET cropThumbImage(EncInInfo *aInfoIn, int outAddr);
+    bool cropThumbImage(EncInInfo *aInfoIn, int outAddr);
 
-    /* encode raw image by commit input fd to the encoder */
-    bool encodeImageFD(EncInInfo *aInfoIn, EncOutInfo *aInfoOut);
+    /* encode raw image using fd imported by user */
+    bool encodeRawImage(EncInInfo *aInfoIn, EncOutInfo *aInfoOut);
 
     /* thumbNail encode for a large resolution input image */
     bool encodeThumb(EncInInfo *aInfoIn, uint8_t **data, int *len);

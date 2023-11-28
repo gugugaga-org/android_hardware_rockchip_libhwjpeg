@@ -24,10 +24,10 @@
 
 typedef struct {
     /* pointer to thumbnail image, or NULL if not available */
-    uint8_t    *thumb_data;
-    int32_t     thumb_size;
+    uint8_t    *thumbData;
+    int32_t     thumbSize;
 
-    RkExifInfo *exif_info;
+    RkExifInfo *exifInfo;
 } ExifParam;
 
 class RKExifWrapper {
@@ -39,7 +39,7 @@ public:
      * param[out] outBuf  - pointer to output buffer pointer.
      * param[out] size    - pointer to hold the buf number bytes
      */
-    static bool getExifHeader(ExifParam *param, uint8_t **outBuf, int *size);
+    static bool getExifHeader(ExifParam param, uint8_t **outBuf, int *size);
 };
 
 #endif  // __RK_EXIF_WRAPPER_H__

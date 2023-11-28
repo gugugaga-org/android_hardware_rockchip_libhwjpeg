@@ -34,8 +34,8 @@
 
 using namespace android;
 
-rga_buffer_handle_t importRgaBuffer(int32_t width, int32_t height,
-                                        int32_t format, int32_t fd) {
+rga_buffer_handle_t importRgaBuffer(
+        int32_t width, int32_t height, int32_t format, int32_t fd) {
     im_handle_param_t imParam;
     memset(&imParam, 0, sizeof(im_handle_param_t));
 
@@ -52,23 +52,23 @@ void freeRgaBuffer(rga_buffer_handle_t handle) {
 
 void CommonUtil::dumpMppFrameToFile(MppFrame frame, FILE *file)
 {
-    int width    = 0;
-    int height   = 0;
-    int h_stride = 0;
-    int v_stride = 0;
-    MppFrameFormat fmt  = MPP_FMT_YUV420SP;
-    MppBuffer buffer    = NULL;
+    int width   = 0;
+    int height  = 0;
+    int hStride = 0;
+    int vStride = 0;
+    MppFrameFormat fmt = MPP_FMT_YUV420SP;
+    MppBuffer buffer   = NULL;
     uint8_t *base = NULL;
 
     if (NULL == file || NULL == frame)
         return;
 
-    width    = mpp_frame_get_width(frame);
-    height   = mpp_frame_get_height(frame);
-    h_stride = mpp_frame_get_hor_stride(frame);
-    v_stride = mpp_frame_get_ver_stride(frame);
-    fmt      = mpp_frame_get_fmt(frame);
-    buffer   = mpp_frame_get_buffer(frame);
+    width   = mpp_frame_get_width(frame);
+    height  = mpp_frame_get_height(frame);
+    hStride = mpp_frame_get_hor_stride(frame);
+    vStride = mpp_frame_get_ver_stride(frame);
+    fmt     = mpp_frame_get_fmt(frame);
+    buffer  = mpp_frame_get_buffer(frame);
 
     if (NULL == buffer)
         return;
@@ -80,15 +80,15 @@ void CommonUtil::dumpMppFrameToFile(MppFrame frame, FILE *file)
         /* YUV422SP -> YUV422P for better display */
         int i, j;
         uint8_t *base_y = base;
-        uint8_t *base_c = base + h_stride * v_stride;
-        uint8_t *tmp = mpp_malloc(uint8_t, h_stride * height * 2);
+        uint8_t *base_c = base + hStride * vStride;
+        uint8_t *tmp = mpp_malloc(uint8_t, hStride * height * 2);
         uint8_t *tmp_u = tmp;
         uint8_t *tmp_v = tmp + width * height / 2;
 
-        for (i = 0; i < height; i++, base_y += h_stride)
+        for (i = 0; i < height; i++, base_y += hStride)
             fwrite(base_y, 1, width, file);
 
-        for (i = 0; i < height; i++, base_c += h_stride) {
+        for (i = 0; i < height; i++, base_c += hStride) {
             for (j = 0; j < width / 2; j++) {
                 tmp_u[j] = base_c[2 * j + 0];
                 tmp_v[j] = base_c[2 * j + 1];
@@ -103,27 +103,27 @@ void CommonUtil::dumpMppFrameToFile(MppFrame frame, FILE *file)
     case MPP_FMT_YUV420SP : {
         int i;
         uint8_t *base_y = base;
-        uint8_t *base_c = base + h_stride * v_stride;
+        uint8_t *base_c = base + hStride * vStride;
 
-        for (i = 0; i < height; i++, base_y += h_stride) {
+        for (i = 0; i < height; i++, base_y += hStride) {
             fwrite(base_y, 1, width, file);
         }
-        for (i = 0; i < height / 2; i++, base_c += h_stride) {
+        for (i = 0; i < height / 2; i++, base_c += hStride) {
             fwrite(base_c, 1, width, file);
         }
     } break;
     case MPP_FMT_YUV420P : {
         int i;
         uint8_t *base_y = base;
-        uint8_t *base_c = base + h_stride * v_stride;
+        uint8_t *base_c = base + hStride * vStride;
 
-        for (i = 0; i < height; i++, base_y += h_stride) {
+        for (i = 0; i < height; i++, base_y += hStride) {
             fwrite(base_y, 1, width, file);
         }
-        for (i = 0; i < height / 2; i++, base_c += h_stride / 2) {
+        for (i = 0; i < height / 2; i++, base_c += hStride / 2) {
             fwrite(base_c, 1, width / 2, file);
         }
-        for (i = 0; i < height / 2; i++, base_c += h_stride / 2) {
+        for (i = 0; i < height / 2; i++, base_c += hStride / 2) {
             fwrite(base_c, 1, width / 2, file);
         }
     } break;
@@ -131,15 +131,15 @@ void CommonUtil::dumpMppFrameToFile(MppFrame frame, FILE *file)
         /* YUV444SP -> YUV444P for better display */
         int i, j;
         uint8_t *base_y = base;
-        uint8_t *base_c = base + h_stride * v_stride;
-        uint8_t *tmp = mpp_malloc(uint8_t, h_stride * height * 2);
+        uint8_t *base_c = base + hStride * vStride;
+        uint8_t *tmp = mpp_malloc(uint8_t, hStride * height * 2);
         uint8_t *tmp_u = tmp;
         uint8_t *tmp_v = tmp + width * height;
 
-        for (i = 0; i < height; i++, base_y += h_stride)
+        for (i = 0; i < height; i++, base_y += hStride)
             fwrite(base_y, 1, width, file);
 
-        for (i = 0; i < height; i++, base_c += h_stride * 2) {
+        for (i = 0; i < height; i++, base_c += hStride * 2) {
             for (j = 0; j < width; j++) {
                 tmp_u[j] = base_c[2 * j + 0];
                 tmp_v[j] = base_c[2 * j + 1];
@@ -237,10 +237,9 @@ MPP_RET CommonUtil::storeFileData(const char *file_name, char **data, size_t *le
     return MPP_OK;
 }
 
-MPP_RET CommonUtil::cropImage(int src, int dst,
-                              int src_width, int src_height,
-                              int src_wstride, int src_hstride,
-                              int dst_width, int dst_height)
+MPP_RET CommonUtil::cropImage(
+        int src, int dst, int srcWidth, int srcHeight,
+        int srcWstride, int srcHstride, int dstWidth, int dstHeight)
 {
     MPP_RET ret = MPP_OK;
     int srcFormat, dstFormat;
@@ -255,8 +254,8 @@ MPP_RET CommonUtil::cropImage(int src, int dst,
     memset(&rgasrc, 0, sizeof(rga_info_t));
     memset(&rgadst, 0, sizeof(rga_info_t));
 
-    srcHdl = importRgaBuffer(src_width, src_height, srcFormat, src);
-    dstHdl = importRgaBuffer(dst_width, dst_height, dstFormat, dst);
+    srcHdl = importRgaBuffer(srcWidth, srcHeight, srcFormat, src);
+    dstHdl = importRgaBuffer(dstWidth, dstHeight, dstFormat, dst);
     if (!srcHdl || !dstHdl) {
         ALOGE("failed to import rga buffer");
         return MPP_NOK;
@@ -264,10 +263,10 @@ MPP_RET CommonUtil::cropImage(int src, int dst,
 
     rgasrc.handle = srcHdl;
     rgadst.handle = dstHdl;
-    rga_set_rect(&rgasrc.rect, 0, 0, src_width, src_height,
-                 src_wstride, src_hstride, srcFormat);
-    rga_set_rect(&rgadst.rect, 0, 0, dst_width, dst_height,
-                 dst_width, dst_height, dstFormat);
+    rga_set_rect(&rgasrc.rect, 0, 0, srcWidth, srcHeight,
+                 srcWstride, srcHstride, srcFormat);
+    rga_set_rect(&rgadst.rect, 0, 0, dstWidth, dstHeight,
+                 dstWidth, dstHeight, dstFormat);
 
     if (rkRga.RkRgaBlit(&rgasrc, &rgadst, NULL)) {
         ALOGE("failed to rga blit");
@@ -280,42 +279,41 @@ MPP_RET CommonUtil::cropImage(int src, int dst,
     return ret;
 }
 
-MPP_RET CommonUtil::readImage(char *src, char *dst,
-                              int width, int height,
-                              int wstride, int hstride,
-                              MppFrameFormat fmt)
+MPP_RET CommonUtil::readImage(
+        char *src, char *dst, int width, int height,
+        int wstride, int hstride, MppFrameFormat fmt)
 {
     MPP_RET ret = MPP_OK;
     int row = 0;
-    char *buf_y = dst;
-    char *buf_u = buf_y + wstride * hstride;
-    char *buf_v = buf_u + wstride * hstride / 4;
+    char *bufY = dst;
+    char *bufU = bufY + wstride * hstride;
+    char *bufV = bufU + wstride * hstride / 4;
 
     switch (fmt) {
     case MPP_FMT_YUV420SP : {
         for (row = 0; row < height; row++) {
-            memcpy(buf_y + row * wstride, src, width);
+            memcpy(bufY + row * wstride, src, width);
             src += width;
         }
 
         for (row = 0; row < height / 2; row++) {
-            memcpy(buf_u + row * wstride, src, width);
+            memcpy(bufU + row * wstride, src, width);
             src += width;
         }
     } break;
     case MPP_FMT_YUV420P : {
         for (row = 0; row < height; row++) {
-            memcpy(buf_y + row * wstride, src, width);
+            memcpy(bufY + row * wstride, src, width);
             src += width;
         }
 
         for (row = 0; row < height / 2; row++) {
-            memcpy(buf_u + row * wstride / 2, src, width / 2);
+            memcpy(bufU + row * wstride / 2, src, width / 2);
             src += width / 2;
         }
 
         for (row = 0; row < height / 2; row++) {
-            memcpy(buf_v + row * wstride / 2, src, width / 2);
+            memcpy(bufV + row * wstride / 2, src, width / 2);
             src += width / 2;
         }
     } break;
@@ -323,21 +321,21 @@ MPP_RET CommonUtil::readImage(char *src, char *dst,
     case MPP_FMT_ABGR8888 :
     case MPP_FMT_ARGB8888 : {
         for (row = 0; row < height; row++) {
-            memcpy(buf_y + row * wstride * 4, src, width * 4);
+            memcpy(bufY + row * wstride * 4, src, width * 4);
             src += width * 4;
         }
     } break;
     case MPP_FMT_YUV422_YUYV :
     case MPP_FMT_YUV422_UYVY : {
         for (row = 0; row < height; row++) {
-            memcpy(buf_y + row * wstride * 2, src, width * 2);
+            memcpy(bufY + row * wstride * 2, src, width * 2);
             src += width * 2;
         }
     } break;
     case MPP_FMT_RGB888 :
     case MPP_FMT_BGR888 : {
     for (row = 0; row < height; row++) {
-        memcpy(buf_y + row * wstride * 3, src, width * 3);
+        memcpy(bufY + row * wstride * 3, src, width * 3);
         src += width * 3;
     }
     } break;
@@ -350,7 +348,7 @@ MPP_RET CommonUtil::readImage(char *src, char *dst,
     return ret;
 }
 
-int CommonUtil::envGetU32(const char *name, uint32_t *value, uint32_t default_value)
+int CommonUtil::envGetU32(const char *name, uint32_t *value, uint32_t defaultValue)
 {
    char prop[PROP_VALUE_MAX + 1];
    int len = __system_property_get(name, prop);
@@ -361,26 +359,26 @@ int CommonUtil::envGetU32(const char *name, uint32_t *value, uint32_t default_va
        *value = strtoul(prop, &endptr, base);
        if (errno || (prop == endptr)) {
            errno = 0;
-           *value = default_value;
+           *value = defaultValue;
        }
    } else {
-       *value = default_value;
+       *value = defaultValue;
    }
 
    return 0;
 }
 
-int CommonUtil::envGetStr(const char *name, const char **value, const char *default_value)
+int CommonUtil::envGetStr(const char *name, const char **value, const char *defaultValue)
 {
-   static unsigned char env_str[2][PROP_VALUE_MAX + 1];
-   static int32_t env_idx = 0;
-   char *prop = reinterpret_cast<char *>(env_str[env_idx]);
+   static unsigned char envStr[2][PROP_VALUE_MAX + 1];
+   static int32_t envIdx = 0;
+   char *prop = reinterpret_cast<char *>(envStr[envIdx]);
    int len = __system_property_get(name, prop);
    if (len > 0) {
        *value  = prop;
-       env_idx = !env_idx;
+       envIdx = !envIdx;
    } else {
-       *value = default_value;
+       *value = defaultValue;
    }
 
    return 0;
@@ -403,9 +401,9 @@ int CommonUtil::envSetStr(const char *name, char *value)
 bool CommonUtil::isValidDmaFd(int fd)
 {
     /* detect input file handle */
-    int fs_flag = fcntl(fd, F_GETFL, NULL);
-    int fd_flag = fcntl(fd, F_GETFD, NULL);
-    if (fs_flag == -1 || fd_flag == -1) {
+    int fsFlag = fcntl(fd, F_GETFL, NULL);
+    int fdFlag = fcntl(fd, F_GETFD, NULL);
+    if (fsFlag == -1 || fdFlag == -1) {
         return false;;
     }
 

@@ -39,18 +39,16 @@ public:
     static MPP_RET storeFileData(const char *file_name, char **data, size_t *length);
 
     /* yuv image related operations */
-    static MPP_RET cropImage(int src, int dst,
-                             int src_width, int src_height,
-                             int src_wstride, int src_hstride,
-                             int dst_width, int dst_height);
-    static MPP_RET readImage(char *src, char *dst,
-                             int width, int height,
-                             int wstride, int hstride,
-                             MppFrameFormat fmt);
+    static MPP_RET cropImage(
+            int src, int dst, int srcWidth, int srcHeight,
+            int srcWstride, int srcHstride, int dstWidth, int dstHeight);
+    static MPP_RET readImage(
+            char *src, char *dst, int width, int height,
+            int wstride, int hstride, MppFrameFormat fmt);
 
     /*  set\get __system_property_ */
-    static int envGetU32(const char *name, uint32_t *value, uint32_t default_value);
-    static int envGetStr(const char *name, const char **value, const char *default_value);
+    static int envGetU32(const char *name, uint32_t *value, uint32_t defaultValue);
+    static int envGetStr(const char *name, const char **value, const char *defaultValue);
     static int envSetU32(const char *name, uint32_t value);
     static int envSetStr(const char *name, char *value);
 

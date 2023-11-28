@@ -117,13 +117,13 @@ bool MpiJpegEncoder::prepareEncoder()
     ret = mpp_create(&mMppCtx, &mMpi);
     if (MPP_OK != ret) {
         ALOGE("failed to create mpp context");
-        goto FAIL;
+        goto ERROR;
     }
 
     ret = mpp_init(mMppCtx, MPP_CTX_ENC, MPP_VIDEO_CodingMJPEG);
     if (MPP_OK != ret) {
         ALOGE("failed to init mpp");
-        goto FAIL;
+        goto ERROR;
     }
 
     // NOTE: timeout value please refer to MppPollType definition
@@ -135,13 +135,13 @@ bool MpiJpegEncoder::prepareEncoder()
         ret = mMpi->control(mMppCtx, MPP_SET_OUTPUT_TIMEOUT, param);
         if (MPP_OK != ret) {
             ALOGE("failed to set output timeout %d ret %d", timeout, ret);
-            goto FAIL;
+            goto ERROR;
         }
 
         ret = mMpi->control(mMppCtx, MPP_SET_INPUT_TIMEOUT, param);
         if (MPP_OK != ret) {
             ALOGE("failed to set input timeout %d ret %d", timeout, ret);
-            goto FAIL;
+            goto ERROR;
         }
     }
 
@@ -154,7 +154,7 @@ bool MpiJpegEncoder::prepareEncoder()
 
     return true;
 
-FAIL:
+ERROR:
     if (mMppCtx) {
         mpp_destroy(mMppCtx);
         mMppCtx = NULL;
@@ -335,10 +335,9 @@ bool MpiJpegEncoder::encodeFrame(char *data, OutputPacket_t *aPktOut)
 
     // NOTE: The hardware vpu only process buffer aligned, so we translate
     // input frame to aligned before encode
-    ret = CommonUtil::readImage(data, (char*)inFrmPtr,
-                                mWidth, mHeight,
-                                mHorStride, mVerStride,
-                                (MppFrameFormat)mFmt);
+    ret = CommonUtil::readImage(
+            data, (char*)inFrmPtr, mWidth, mHeight,
+            mHorStride, mVerStride, (MppFrameFormat)mFmt);
     if (MPP_OK != ret)
         goto END;
 
@@ -369,19 +368,7 @@ bool MpiJpegEncoder::encodeFrame(char *data, OutputPacket_t *aPktOut)
         }
     }
 
-    ret = mMpi->encode_put_frame(mMppCtx, inFrm);
-    if (MPP_OK != ret) {
-        ALOGE("failed to put input frame");
-        goto END;
-    }
-
-    ret = mMpi->encode_get_packet(mMppCtx, &outPkt);
-    if (MPP_OK != ret) {
-        ALOGE("failed to get output packet");
-        goto END;
-    }
-
-    if (outPkt) {
+    if (runFrameEnc(inFrm, outPkt)) {
         memset(aPktOut, 0, sizeof(OutputPacket_t));
 
         aPktOut->data = (char*)mpp_packet_get_pos(outPkt);
@@ -462,36 +449,40 @@ END:
     return ret == MPP_OK ? true : false;
 }
 
-MPP_RET MpiJpegEncoder::runFrameEnc(MppFrame inFrm, MppPacket outPkt)
+bool MpiJpegEncoder::runFrameEnc(MppFrame inFrm, MppPacket &outPkt)
 {
     MPP_RET ret  = MPP_OK;
     MppTask task = NULL;
 
-    if (!inFrm || !outPkt)
-        return MPP_NOK;
+    if (!inFrm) {
+        ALOGE("invalid null input");
+        return false;
+    }
 
     /* start queue input task */
     ret = mMpi->poll(mMppCtx, MPP_PORT_INPUT, MPP_POLL_BLOCK);
     if (MPP_OK != ret) {
         ALOGE("failed to poll input_task");
-        return ret;
+        return false;
     }
 
     /* dequeue input port */
     ret = mMpi->dequeue(mMppCtx, MPP_PORT_INPUT, &task);
     if (MPP_OK != ret) {
-        ALOGE("failed dequeue to input_task ");
-        return ret;
+        ALOGE("failed dequeue to input_task");
+        return false;
     }
 
     mpp_task_meta_set_frame(task, KEY_INPUT_FRAME, inFrm);
-    mpp_task_meta_set_packet(task, KEY_OUTPUT_PACKET, outPkt);
+    if (outPkt) {
+        mpp_task_meta_set_packet(task, KEY_OUTPUT_PACKET, outPkt);
+    }
 
     /* enqueue input port */
     ret = mMpi->enqueue(mMppCtx, MPP_PORT_INPUT, task);
     if (MPP_OK != ret) {
         ALOGE("failed to enqueue input_task");
-        return ret;
+        return false;
     }
 
     task = NULL;
@@ -505,29 +496,27 @@ MPP_RET MpiJpegEncoder::runFrameEnc(MppFrame inFrm, MppPacket outPkt)
 
     /* dequeue output port */
     ret = mMpi->dequeue(mMppCtx, MPP_PORT_OUTPUT, &task);
-    if (MPP_OK != ret) {
+    if (MPP_OK != ret || !task) {
         ALOGE("failed to dequeue output_task");
-        return ret;
+        return false;
     }
 
-    if (task) {
-        MppPacket packet = NULL;
-        mpp_task_meta_get_packet(task, KEY_OUTPUT_PACKET, &packet);
+    MppPacket packet = NULL;
+    mpp_task_meta_get_packet(task, KEY_OUTPUT_PACKET, &packet);
 
-        /* enqueue output port */
-        ret = mMpi->enqueue(mMppCtx, MPP_PORT_OUTPUT, task);
-        if (MPP_OK != ret) {
-            ALOGE("failed to enqueue output_task");
-            return ret;
-        }
-
-        return (packet == outPkt) ? MPP_OK : MPP_NOK;
+    /* enqueue output port */
+    ret = mMpi->enqueue(mMppCtx, MPP_PORT_OUTPUT, task);
+    if (MPP_OK != ret) {
+        ALOGE("failed to enqueue output_task");
+        return false;
     }
 
-    return MPP_NOK;
+    outPkt = packet;
+
+    return true;
 }
 
-MPP_RET MpiJpegEncoder::cropThumbImage(EncInInfo *aInfoIn, int outAddr)
+bool MpiJpegEncoder::cropThumbImage(EncInInfo *aInfoIn, int outAddr)
 {
     MPP_RET ret = MPP_OK;
     MppBuffer buffer = NULL;
@@ -559,10 +548,9 @@ MPP_RET MpiJpegEncoder::cropThumbImage(EncInInfo *aInfoIn, int outAddr)
 
         dstAddr = mpp_buffer_get_fd(buffer);
 
-        ret = CommonUtil::cropImage(srcAddr, dstAddr,
-                                    srcWidth, srcHeight,
-                                    srcWidth, srcHeight,
-                                    scaleWidth, scaleHeight);
+        ret = CommonUtil::cropImage(
+                srcAddr, dstAddr, srcWidth, srcHeight,
+                srcWidth, srcHeight, scaleWidth, scaleHeight);
         if (MPP_OK != ret) {
             ALOGE("failed to crop scale ret %d", ret);
             goto END;
@@ -574,10 +562,9 @@ MPP_RET MpiJpegEncoder::cropThumbImage(EncInInfo *aInfoIn, int outAddr)
         srcHeight = scaleHeight;
     }
 
-    ret = CommonUtil::cropImage(srcAddr, dstAddr,
-                                srcWidth, srcHeight,
-                                srcWidth, srcHeight,
-                                dstWidth, dstHeight);
+    ret = CommonUtil::cropImage(
+            srcAddr, dstAddr, srcWidth, srcHeight,
+            srcWidth, srcHeight, dstWidth, dstHeight);
 
 END:
     if (buffer) {
@@ -585,11 +572,11 @@ END:
         buffer = NULL;
     }
 
-    return ret;
+    return (ret == MPP_OK) ? true : false;
 }
 
 
-bool MpiJpegEncoder::encodeImageFD(EncInInfo *aInfoIn, EncOutInfo *aOutInfo)
+bool MpiJpegEncoder::encodeRawImage(EncInInfo *aInfoIn, EncOutInfo *aOutInfo)
 {
     MPP_RET   ret       = MPP_OK;
     /* input frame and output packet */
@@ -654,8 +641,7 @@ bool MpiJpegEncoder::encodeImageFD(EncInInfo *aInfoIn, EncOutInfo *aOutInfo)
         mpp_packet_set_length(outPkt, 0);
     }
 
-    ret = runFrameEnc(inFrm, outPkt);
-    if (MPP_OK == ret) {
+    if (runFrameEnc(inFrm, outPkt)) {
         OutputPacket_t *pOutPkt = &aOutInfo->outPkt;
         memset(pOutPkt, 0, sizeof(OutputPacket_t));
 
@@ -733,8 +719,7 @@ bool MpiJpegEncoder::encodeThumb(EncInInfo *aInfoIn, uint8_t **data, int *len)
     inFrmFd = mpp_buffer_get_fd(inFrmBuf);
 
     /* crop raw buffer to the size of thumbnail */
-    ret = cropThumbImage(aInfoIn, inFrmFd);
-    if (MPP_OK != ret) {
+    if (!cropThumbImage(aInfoIn, inFrmFd)) {
         ALOGE("failed to crop yuv image before encode thumb.");
         goto END;
     }
@@ -751,8 +736,7 @@ bool MpiJpegEncoder::encodeThumb(EncInInfo *aInfoIn, uint8_t **data, int *len)
     /* NOTE: It is important to clear output packet length */
     mpp_packet_set_length(outPkt, 0);
 
-    ret = runFrameEnc(inFrm, outPkt);
-    if (MPP_OK == ret) {
+    if (runFrameEnc(inFrm, outPkt)) {
         uint8_t *ptr = (uint8_t*)mpp_packet_get_data(outPkt);
         int length = mpp_packet_get_length(outPkt);
 
@@ -789,8 +773,8 @@ bool MpiJpegEncoder::encode(EncInInfo *inInfo, EncOutInfo *outInfo)
 
     /* exif header releated */
     ExifParam eParam;
-    uint8_t *header_buf = NULL;
-    int header_size = 0;
+    uint8_t *headerBuf = NULL;
+    int headerSize = 0;
 
     /* APP0 header length of encoded picture default */
     static const int g_app0_header_length = 20;
@@ -821,43 +805,49 @@ bool MpiJpegEncoder::encode(EncInInfo *inInfo, EncOutInfo *outInfo)
     }
 
     memset(&eParam, 0, sizeof(ExifParam));
-    eParam.exif_info = (RkExifInfo*)inInfo->exifInfo;
-    eParam.exif_info->gpsInfo = (RkGPSInfo *)inInfo->gpsInfo;
+    eParam.exifInfo = (RkExifInfo *)inInfo->exifInfo;
+    eParam.exifInfo->gpsInfo = (RkGPSInfo *)inInfo->gpsInfo;
 
     if (inInfo->doThumbNail) {
-        ret = encodeThumb(inInfo, &eParam.thumb_data, &eParam.thumb_size);
-        if (!ret || eParam.thumb_size <= 0) {
+        ret = encodeThumb(inInfo, &eParam.thumbData, &eParam.thumbSize);
+        if (!ret || eParam.thumbSize <= 0) {
             inInfo->doThumbNail = 0;
             ALOGW("failed to get thumbNail, will remove it.");
         }
     }
 
     /* produce exif header, insert thumbnail if nessessary */
-    ret = RKExifWrapper::getExifHeader(&eParam, &header_buf, &header_size);
-    if (!ret || header_size <= 0) {
+    ret = RKExifWrapper::getExifHeader(eParam, &headerBuf, &headerSize);
+    if (!ret || headerSize <= 0) {
         ALOGE("failed to get exif header.");
         goto END;
     }
 
-    /* encode raw image by commit input\output fd */
-    ret = encodeImageFD(inInfo, outInfo);
+    /* encode raw image using fd imported by users */
+    ret = encodeRawImage(inInfo, outInfo);
     if (!ret) {
         ALOGE("failed to encode task.");
         goto END;
     }
 
     /*
-     * output frame carried APP0 header information deault, so remove
-     * APP0 header first if wants to carry APP1 header.
+     * collect output jpeg file.
+     * SOI + App1Marker + App1Length + exifInfo + jpegImage
+     *
+     * Note:
+     * 1. output frame carried APP0 header information deault, so remove
+     *    APP0 header first so that we can replace with APP1 header.
+     * 2. TODO: resered space of exif at the header of output buffer, so
+     *    that we can reduce memcpy. mpp_buffer_set_start_offset?
      */
     pktOut = outInfo->outPkt;
-    tmpBuf = (uint8_t*)malloc(pktOut.size + header_size - g_app0_header_length);
-    memcpy(tmpBuf, header_buf, header_size);
-    memcpy(tmpBuf + header_size,
+    tmpBuf = (uint8_t*)malloc(pktOut.size + headerSize - g_app0_header_length);
+    memcpy(tmpBuf, headerBuf, headerSize);
+    memcpy(tmpBuf + headerSize,
            pktOut.data + g_app0_header_length,
            pktOut.size - g_app0_header_length);
 
-    outInfo->outBufLen = pktOut.size + header_size - g_app0_header_length;
+    outInfo->outBufLen = pktOut.size + headerSize - g_app0_header_length;
 
     memset(outInfo->outputVirAddr, 0, outInfo->outBufLen);
     memcpy(outInfo->outputVirAddr, tmpBuf, outInfo->outBufLen);
@@ -882,13 +872,13 @@ bool MpiJpegEncoder::encode(EncInInfo *inInfo, EncOutInfo *outInfo)
     ALOGD("get output w %d h %d len %d", mWidth, mHeight, outInfo->outBufLen);
 
 END:
-    if (eParam.thumb_data) {
-        free(eParam.thumb_data);
-        eParam.thumb_data = NULL;
+    if (eParam.thumbData) {
+        free(eParam.thumbData);
+        eParam.thumbData = NULL;
     }
-    if (header_buf) {
-        free(header_buf);
-        header_buf = NULL;
+    if (headerBuf) {
+        free(headerBuf);
+        headerBuf = NULL;
     }
     if (tmpBuf) {
         free(tmpBuf);

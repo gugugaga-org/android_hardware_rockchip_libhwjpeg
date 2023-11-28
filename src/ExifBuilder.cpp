@@ -26,7 +26,7 @@
 
 #include "ExifBuilder.h"
 
-static const unsigned char ExifHeader[] = {0x45, 0x78, 0x69, 0x66, 0x00, 0x00};
+static const unsigned char gExifHeader[] = { 0x45, 0x78, 0x69, 0x66, 0x00, 0x00 };
 
 static const struct {
     ExifIfd ifd;
@@ -448,8 +448,7 @@ static bool exif_save_data_content(ExifData *edata, ExifContent *ifd,
         || edata->thumb_size)) {
         /* We are saving IFD 0. Tell where IFD 1 starts and save IFD 1.*/
         exif_set_long(*buf + 6 + offset, edata->order, *len - 6);
-        exif_save_data_content(edata, &edata->ifd[EXIF_IFD_1],
-                               buf, len, *len - 6);
+        exif_save_data_content(edata, &edata->ifd[EXIF_IFD_1], buf, len, *len - 6);
     } else {
         exif_set_long (*buf + 6 + offset, edata->order, 0);
     }
@@ -467,7 +466,7 @@ bool exif_general_build(ExifData *edata, unsigned char **buf, int *len)
     // Set to intel byte order default.
     edata->order = EXIF_BYTE_ORDER_INTEL;
 
-    /* Header */
+    /* Header size */
     *len = 14;
     *buf = (unsigned char*)malloc(*len);
     if (!*buf)  {
@@ -476,7 +475,7 @@ bool exif_general_build(ExifData *edata, unsigned char **buf, int *len)
         return false;
     }
 
-    memcpy(*buf, ExifHeader, 6);
+    memcpy(*buf, gExifHeader, 6);
 
     /* Order (offset 6) */
     if (edata->order == EXIF_BYTE_ORDER_INTEL) {
@@ -496,8 +495,8 @@ bool exif_general_build(ExifData *edata, unsigned char **buf, int *len)
     exif_set_long(*buf + 10, edata->order, 8);
 
     ALOGV("Saving IFDs...");
-    if (exif_save_data_content(edata, &edata->ifd[EXIF_IFD_0],
-                               buf, len, *len - 6)) {
+    if (exif_save_data_content(
+            edata, &edata->ifd[EXIF_IFD_0], buf, len, (*len - 6))) {
         ALOGV("Saved %d bytes EXIF data.", *len);
         return true;
     }

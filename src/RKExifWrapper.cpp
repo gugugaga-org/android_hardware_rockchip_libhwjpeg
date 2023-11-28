@@ -310,57 +310,44 @@ static void parseExifInfo(RkExifInfo *exifInfo, ExifData *edata)
                            0x01, edata->order, 0x06);
 }
 
-bool RKExifWrapper::getExifHeader(ExifParam *param,
-                                  uint8_t **outBuf, int *size)
+bool RKExifWrapper::getExifHeader(ExifParam param, uint8_t **outBuf, int *size)
 {
     bool ret = false;
-    uint8_t *exif_buf  = NULL;
-    int32_t  exif_size = 0;
-
-    static unsigned char App1Header[] = { 0xff, 0xd8, 0xff, 0xe1 };
-
-    if (NULL == param) {
-        ALOGE("found invalid input param.");
-        return false;
-    }
-
+    uint8_t *exifBuf  = NULL;
+    int32_t  exifSize = 0;
     ExifData eData;
+
     memset(&eData, 0, sizeof(ExifData));
-    eData.thumb_data = param->thumb_data;
-    eData.thumb_size = param->thumb_size;
+    eData.thumb_data = param.thumbData;
+    eData.thumb_size = param.thumbSize;
 
-    /* parse from RkExifInfo -> ExifData */
-    parseExifInfo(param->exif_info, &eData);
+    static const unsigned char gApp1Header[] = { 0xff, 0xd8, 0xff, 0xe1 };
 
-    ret = exif_general_build(&eData, &exif_buf, &exif_size);
-    if (!ret) {
+    /* parse from RkExifInfo to ExifData */
+    parseExifInfo(param.exifInfo, &eData);
+
+    if (!exif_general_build(&eData, &exifBuf, &exifSize)) {
         ALOGE("failed to general exif from builder.");
         ret = false;
-        goto EXIT;
+        goto END;
     }
 
-    // Allocate enough memory for app1 header
-    // (SOI + App1Marker + App1Length + exif_info)
-    *outBuf = (uint8_t*)malloc(exif_size + 6);
-    if (!(*outBuf))  {
-        ALOGE("failed to alloc header buf.");
-        ret = false;
-        goto EXIT;
-    }
-
+    // (SOI + App1Marker + App1Length + exifInfo)
     // 0xff 0xd8 0xdd 0xe1
-    memcpy(*outBuf, App1Header, 4);
-    // length of app1 exif part
-    exif_set_short(*outBuf + 4, EXIF_BYTE_ORDER_MOTOROLA, exif_size + 2);
+    *outBuf = (uint8_t*)malloc(exifSize + 6);
 
-    memcpy(*outBuf + 6, exif_buf, exif_size);
-    *size = exif_size + 6;
+    memcpy(*outBuf, gApp1Header, 4);
+    // length of app1 exif part
+    exif_set_short(*outBuf + 4, EXIF_BYTE_ORDER_MOTOROLA, exifSize + 2);
+
+    memcpy(*outBuf + 6, exifBuf, exifSize);
+    *size = exifSize + 6;
 
     ret = true;
 
-    ALOGV("get exif header, len  %d",  *size);
+    ALOGV("get exif header, len %d",  *size);
 
-EXIT:
+END:
     // release exif entry allocated at builder
     for (int i = 0; i < EXIF_IFD_COUNT; i++) {
         ExifContent ifd = eData.ifd[i];
@@ -369,8 +356,8 @@ EXIT:
         }
     }
 
-    if (exif_buf)
-        free(exif_buf);
+    if (exifBuf)
+        free(exifBuf);
 
     return ret;
 }

@@ -64,8 +64,8 @@ public:
      */
     void deinitOutputFrame(OutputFrame_t *aframeOut);
 
-    MPP_RET sendpacket(char* inputBuf, size_t length, int outPhyAddr = 0);
-    MPP_RET getoutframe(OutputFrame_t *aframeOut);
+    bool sendpacket(char* inputBuf, size_t length, int outPhyAddr = 0);
+    bool getoutframe(OutputFrame_t *aframeOut);
 
     bool decodePacket(char* buf, size_t length, OutputFrame_t *aframeOut);
     bool decodeFile(const char *inputFile, const char *outputFile);
