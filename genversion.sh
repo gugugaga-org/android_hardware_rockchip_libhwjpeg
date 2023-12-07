@@ -24,16 +24,10 @@ test "$version" || version=$revision
 
 test -n "$3" && version=$version-$3
 
-if [ -z "$2" ]; then
-    echo "$version"
-fi
-
 # releases extract the version number from the VERSION file
 version=$(cat VERSION 2> /dev/null)
 test "$version" || version=$revision
 
-DST_VERSION_FILE=`pwd`/src/version.h
+RET_VERSION="$(cat version.h.template | sed -e "/^#define *HWJPEG_VERSION_INFO   */s/\(#define *HWJPEG_VERSION_INFO   *\)\(\".*\"\)/\1\"${version}\"/")"
 
-sed -i "/^#define *HWJPEG_VERSION_INFO   */s/\(#define *HWJPEG_VERSION_INFO   *\)\(\".*\"\)/\1\"${version}\"/" ${DST_VERSION_FILE}
-sed -i "/^#define *HWJPEG_BUILD_INFO  */s/\(#define *HWJPEG_BUILD_INFO  *\)\(\".*\"\)/\1\"built-${build_name} ${build_date}\"/" ${DST_VERSION_FILE}
-
+echo "${RET_VERSION}"

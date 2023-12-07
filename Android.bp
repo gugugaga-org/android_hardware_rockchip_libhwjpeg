@@ -20,7 +20,7 @@ cc_library_headers {
 
 cc_library_shared {
     name: "libhwjpeg",
-    // generated_headers: ["gen_hwjpeg_version"],
+    generated_headers: ["gen_hwjpeg_version"],
     vendor: true,
 
     arch: {

@@ -19,6 +19,5 @@
 #define __VERSION_H__
 
 #define HWJPEG_VERSION_INFO     ""
-#define HWJPEG_BUILD_INFO       ""
 
 #endif  // __VERSION_H__
