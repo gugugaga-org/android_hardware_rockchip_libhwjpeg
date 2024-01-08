@@ -53,7 +53,7 @@ static void parseExifInfo(RkExifInfo *exifInfo, ExifData *edata)
                      exifInfo->modelchars, exifInfo->modelstr);
     /* --- 4). Orientation */
     exif_setup_long_entry(&ifd->entries[ifd->entry_count++],
-                          EXIF_TAG_ORIENTATION, EXIF_FORMAT_LONG,
+                          EXIF_TAG_ORIENTATION, EXIF_FORMAT_SHORT,
                           0x01, edata->order, exifInfo->Orientation);
     /* --- 5). XResolution */
     rat[0].numerator = 72;
