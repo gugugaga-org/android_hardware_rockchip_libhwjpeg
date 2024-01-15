@@ -31,7 +31,7 @@
 #include "QList.h"
 #include "JpegParser.h"
 #include "Utils.h"
-#include "version.h"
+#include "Version.h"
 #include "MpiJpegDecoder.h"
 
 uint32_t dec_debug = 0;
@@ -76,7 +76,7 @@ MpiJpegDecoder::MpiJpegDecoder() :
     mInputFile(NULL),
     mOutputFile(NULL)
 {
-    ALOGI("version: %s", HWJPEG_VERSION_INFO);
+    ALOGI("libhwjpeg version %s", HWJPEG_FULL_VERSION);
 
     // Output Format set to YUV420SP default
     mOutputFmt = OUT_FORMAT_YUV420SP;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Rockchip Electronics Co. LTD
+ * Copyright (C) 2023 Rockchip Electronics Co. LTD
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,12 +12,23 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
-#ifndef __VERSION_H__
-#define __VERSION_H__
+#ifndef _ANDROID_HWJPEG_VERSION_H_
+#define _ANDROID_HWJPEG_VERSION_H_
 
-#define HWJPEG_VERSION_INFO     ""
+#define VERSION_STR_HELPER(x) #x
+#define VERSION_STR(x) VERSION_STR_HELPER(x)
 
-#endif  // __VERSION_H__
+/* Libhwjpeg Component Verison */
+#define MAJOR_VERSION       1
+#define MINOR_VERSION       4
+#define REVISION_VERSION    1
+
+#define HWJPEG_FULL_VERSION \
+    VERSION_STR(MAJOR_VERSION) "." \
+    VERSION_STR(MINOR_VERSION) "." \
+    VERSION_STR(REVISION_VERSION) ""
+
+#endif /* _ANDROID_HWJPEG_VERSION_H_ */
+

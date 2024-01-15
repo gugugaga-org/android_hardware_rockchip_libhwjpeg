@@ -27,7 +27,7 @@
 #include "mpp_err.h"
 #include "Utils.h"
 #include "MpiDebug.h"
-#include "version.h"
+#include "Version.h"
 #include "RKExifWrapper.h"
 #include "QList.h"
 #include "MpiJpegEncoder.h"
@@ -73,7 +73,7 @@ MpiJpegEncoder::MpiJpegEncoder() :
     mInputFile(NULL),
     mOutputFile(NULL)
 {
-    ALOGI("version: %s", HWJPEG_VERSION_INFO);
+    ALOGI("libhwjpeg version %s", HWJPEG_FULL_VERSION);
 
     /* input format set to YUV420SP default */
     mFmt = INPUT_FMT_YUV420SP;
