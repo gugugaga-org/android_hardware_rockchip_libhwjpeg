@@ -72,6 +72,110 @@ found:
     return val;
 }
 
+MPP_RET jpeg_parser_decode_dht(BitReader *br)
+{
+    uint32_t len;
+
+    len = br->getBits(16);
+    len -= 2; /* quantize tables length */
+
+    if (len > br->numBitsLeft()) {
+        ALOGE("dht: len %d is too large", len);
+        return MPP_NOK;
+    }
+
+    while (len > 0) {
+        if (len < 16 + 1) {
+            ALOGE("dht: len %d is too small", len);
+            return MPP_ERR_STREAM;
+        }
+
+        uint32_t table_type, table_id;
+        uint32_t i, num;
+
+        table_type = br->getBits(4); /* 0 - DC; 1 - AC */
+        if (table_type >= 2) {
+            ALOGE("table type %d error", table_type);
+            return MPP_ERR_STREAM;
+        }
+
+        table_id = br->getBits(4);
+        if (table_id >= 2) {
+            ALOGE("table id %d is unsupported for baseline", table_id);
+            return MPP_ERR_STREAM;
+        }
+
+        num = 0;
+        for (i = 0; i < 16; i++) {
+            num += br->getBits(8);
+        }
+
+        len -= 17;
+        for (i = 0; i < num; i++) {
+            br->skipBits(8);
+        }
+
+        len -= num;
+    }
+    return MPP_OK;
+}
+
+/* quantize tables */
+MPP_RET jpeg_parser_decode_dqt(BitReader *br)
+{
+    uint32_t len;
+
+    len = br->getBits(16);
+    len -= 2; /* quantize tables length */
+
+    if (len > br->numBitsLeft()) {
+        ALOGE("dqt: len %d is too large", len);
+        return MPP_NOK;
+    }
+
+    while (len >= 65) {
+        uint32_t pr, index;
+
+        pr = br->getBits(4);
+        if (pr > 1) {
+            ALOGE("dqt: invalid precision");
+            return MPP_ERR_STREAM;
+        }
+
+        index = br->getBits(4);
+        if (index >= 4) {
+            ALOGE("dqt: invalid quantize tables ID");
+            return MPP_ERR_STREAM;
+        }
+
+        ALOGV("quantize tables ID=%d", index);
+
+        /* read quant table */
+        for (int32_t i = 0; i < 64; i++) {
+            br->skipBits(pr ? 16 : 8);
+        }
+
+        len -= 1 + 64 * (1 + pr);
+    }
+    return MPP_OK;
+}
+
+MPP_RET jpeg_parser_decode_dri(BitReader *br)
+{
+    uint32_t len, bits;
+    uint32_t width, height, nb_components;
+
+    len = br->getBits(16);
+    if (len != 4) {
+        ALOGE("DRI length %d error", len);
+        return MPP_NOK;
+    }
+
+    br->skipBits(16);
+
+    return MPP_OK;
+}
+
 MPP_RET jpeg_parser_decode_sof(BitReader *br, uint32_t *out_width, uint32_t *out_height)
 {
     uint32_t len, bits;
@@ -150,12 +254,25 @@ MPP_RET jpeg_parser_get_dimens(char *buf, size_t buf_size,
                 return MPP_NOK;
             }
         case DHT:
+            if (MPP_OK != jpeg_parser_decode_dht(&br)) {
+                ALOGE("huffman table decode error");
+                return MPP_NOK;
+            }
+            break;
         case DQT:
+            if (MPP_OK != jpeg_parser_decode_dqt(&br)) {
+                ALOGE("quantize tables decode error");
+                return MPP_NOK;
+            }
+            break;
         case COM:
         case EOI:
         case SOS:
         case DRI:
-            // TODO process
+            if (MPP_OK != jpeg_parser_decode_dri(&br)) {
+                ALOGE("dri decode error");
+                return MPP_NOK;
+            }
             break;
         case SOF2:
         case SOF3:
