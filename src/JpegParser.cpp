@@ -23,57 +23,54 @@
 #include "JpegParser.h"
 #include "BitReader.h"
 
-MPP_RET jpeg_parser_skip_section(BitReader *br)
-{
+bool jpeg_parser_skip_section(BitReader *br) {
     uint32_t len = 0;
 
     if (br->numBitsLeft() < 2)
-        return MPP_ERR_READ_BIT;
+        return false;
 
     len = br->getBits(16);
     if (len < 2 /* invalid marker */ || (uint32_t)len - 2 > br->numBitsLeft()) {
         /* too short length or bytes is not enough */
-        return MPP_ERR_READ_BIT;
+        return false;
     }
 
     if (len > 2)
         br->skipBits((len - 2) * 8);
 
-    return MPP_OK;
+    return true;
 }
 
 /* return the 8 bit start code value and update the search
    state. Return -1 if no start code found */
-int32_t jpeg_parser_find_marker(const uint8_t **pbuf_ptr, const uint8_t *buf_end)
-{
-    const uint8_t *buf_ptr;
+int32_t jpeg_parser_find_marker(const uint8_t **pbufPtr, const uint8_t *bufEnd) {
+    const uint8_t *bufPtr;
     unsigned int v, v2;
     int val;
     int skipped = 0;
 
-    buf_ptr = *pbuf_ptr;
-    while (buf_end - buf_ptr > 1) {
-        v  = *buf_ptr++;
-        v2 = *buf_ptr;
-        if ((v == 0xff) && (v2 >= 0xc0) && (v2 <= 0xfe) && buf_ptr < buf_end) {
-            val = *buf_ptr++;
+    bufPtr = *pbufPtr;
+    while (bufEnd - bufPtr > 1) {
+        v  = *bufPtr++;
+        v2 = *bufPtr;
+        if ((v == 0xff) && (v2 >= 0xc0) && (v2 <= 0xfe) && bufPtr < bufEnd) {
+            val = *bufPtr++;
             goto found;
         } else if ((v == 0x89) && (v2 == 0x50)) {
             ALOGV("input img maybe png format,check it");
         }
         skipped++;
     }
-    buf_ptr = buf_end;
+    bufPtr = bufEnd;
     val = -1;
 
 found:
     ALOGV("find_marker skipped %d bytes", skipped);
-    *pbuf_ptr = buf_ptr;
+    *pbufPtr = bufPtr;
     return val;
 }
 
-MPP_RET jpeg_parser_decode_dht(BitReader *br)
-{
+bool jpeg_parser_decode_dht(BitReader *br) {
     uint32_t len;
 
     len = br->getBits(16);
@@ -81,28 +78,28 @@ MPP_RET jpeg_parser_decode_dht(BitReader *br)
 
     if (len > br->numBitsLeft()) {
         ALOGE("dht: len %d is too large", len);
-        return MPP_NOK;
+        return false;
     }
 
     while (len > 0) {
         if (len < 16 + 1) {
             ALOGE("dht: len %d is too small", len);
-            return MPP_ERR_STREAM;
+            return false;
         }
 
-        uint32_t table_type, table_id;
+        uint32_t tableType, tableId;
         uint32_t i, num;
 
-        table_type = br->getBits(4); /* 0 - DC; 1 - AC */
-        if (table_type >= 2) {
-            ALOGE("table type %d error", table_type);
-            return MPP_ERR_STREAM;
+        tableType = br->getBits(4); /* 0 - DC; 1 - AC */
+        if (tableType >= 2) {
+            ALOGE("table type %d error", tableType);
+            return false;
         }
 
-        table_id = br->getBits(4);
-        if (table_id >= 2) {
-            ALOGE("table id %d is unsupported for baseline", table_id);
-            return MPP_ERR_STREAM;
+        tableId = br->getBits(4);
+        if (tableId >= 2) {
+            ALOGE("table id %d is unsupported for baseline", tableId);
+            return false;
         }
 
         num = 0;
@@ -117,12 +114,11 @@ MPP_RET jpeg_parser_decode_dht(BitReader *br)
 
         len -= num;
     }
-    return MPP_OK;
+    return true;
 }
 
 /* quantize tables */
-MPP_RET jpeg_parser_decode_dqt(BitReader *br)
-{
+bool jpeg_parser_decode_dqt(BitReader *br) {
     uint32_t len;
 
     len = br->getBits(16);
@@ -130,7 +126,7 @@ MPP_RET jpeg_parser_decode_dqt(BitReader *br)
 
     if (len > br->numBitsLeft()) {
         ALOGE("dqt: len %d is too large", len);
-        return MPP_NOK;
+        return false;
     }
 
     while (len >= 65) {
@@ -139,13 +135,13 @@ MPP_RET jpeg_parser_decode_dqt(BitReader *br)
         pr = br->getBits(4);
         if (pr > 1) {
             ALOGE("dqt: invalid precision");
-            return MPP_ERR_STREAM;
+            return false;
         }
 
         index = br->getBits(4);
         if (index >= 4) {
             ALOGE("dqt: invalid quantize tables ID");
-            return MPP_ERR_STREAM;
+            return false;
         }
 
         ALOGV("quantize tables ID=%d", index);
@@ -157,41 +153,38 @@ MPP_RET jpeg_parser_decode_dqt(BitReader *br)
 
         len -= 1 + 64 * (1 + pr);
     }
-    return MPP_OK;
+    return true;
 }
 
-MPP_RET jpeg_parser_decode_dri(BitReader *br)
-{
-    uint32_t len, bits;
-    uint32_t width, height, nb_components;
+bool jpeg_parser_decode_dri(BitReader *br) {
+    uint32_t len;
 
     len = br->getBits(16);
     if (len != 4) {
         ALOGE("DRI length %d error", len);
-        return MPP_NOK;
+        return false;
     }
 
     br->skipBits(16);
 
-    return MPP_OK;
+    return true;
 }
 
-MPP_RET jpeg_parser_decode_sof(BitReader *br, uint32_t *out_width, uint32_t *out_height)
-{
+bool jpeg_parser_decode_sof(BitReader *br, int32_t *outWidth, int32_t *outHeight) {
     uint32_t len, bits;
-    uint32_t width, height, nb_components;
+    int32_t width, height, nbComponents;
 
     len = br->getBits(16);
     if (len > br->numBitsLeft()) {
         ALOGE("sof0: len %d is too large", len);
-        return MPP_NOK;
+        return false;
     }
 
     bits = br->getBits(8);
     if (bits > 16 || bits < 1) {
         /* usually bits is 8 */
         ALOGE("sof0: bits %d is invalid", bits);
-        return MPP_NOK;
+        return false;
     }
 
     height = br->getBits(16);
@@ -199,79 +192,74 @@ MPP_RET jpeg_parser_decode_sof(BitReader *br, uint32_t *out_width, uint32_t *out
 
     ALOGV("sof0: picture: %dx%d", width, height);
 
-    nb_components = br->getBits(8);
-    if ((nb_components != 1) && (nb_components != MAX_COMPONENTS)) {
-        ALOGE("sof0: components number %d error", nb_components);
-        return MPP_NOK;
+    nbComponents = br->getBits(8);
+    if ((nbComponents != 1) && (nbComponents != MAX_COMPONENTS)) {
+        ALOGE("sof0: components number %d error", nbComponents);
+        return false;
     }
 
-    if (len != (8 + (3 * nb_components)))
+    if (len != (8 + (3 * nbComponents)))
         ALOGE("sof0: error, len(%d) mismatch nb_components(%d)",
-              len, nb_components);
+              len, nbComponents);
 
-    *out_width = width;
-    *out_height = height;
+    *outWidth = width;
+    *outHeight = height;
 
-    return MPP_OK;
+    return true;
 }
 
-MPP_RET jpeg_parser_get_dimens(char *buf, size_t buf_size,
-                               uint32_t *out_width, uint32_t *out_height)
-{
-    const uint8_t *buf_end, *buf_ptr;
-    uint8_t *ubuf = (uint8_t*)buf;
+bool jpeg_parser_get_dimens(
+        char *data, size_t size, int32_t *outWidth, int32_t *outHeight) {
+    const uint8_t *bufEnd, *bufPtr;
+    uint8_t *ubuf = (uint8_t*)data;
 
-    buf_ptr = ubuf;
-    buf_end = ubuf + buf_size;
+    bufPtr = ubuf;
+    bufEnd = ubuf + size;
 
-    if (buf_size < 4 || *buf_ptr != 0xFF || *(buf_ptr + 1) != SOI) {
+    if (size < 4 || *bufPtr != 0xFF || *(bufPtr + 1) != SOI) {
         // not jpeg
-        return MPP_ERR_STREAM;
+        return false;
     }
 
-    while (buf_ptr < buf_end) {
-        int section_finish = 1;
+    while (bufPtr < bufEnd) {
+        int sectionFinish = 1;
         /* find start marker */
-        int32_t start_code = jpeg_parser_find_marker(&buf_ptr, buf_end);
-        if (start_code < 0) {
+        int32_t startCode = jpeg_parser_find_marker(&bufPtr, bufEnd);
+        if (startCode < 0) {
             ALOGV("start code not found");
         }
 
         ALOGV("marker = 0x%x, avail_size_in_buf = %d\n",
-              start_code, (int)(buf_end - buf_ptr));
+              startCode, (int)(bufEnd - bufPtr));
 
         /* setup bit read context */
-        BitReader br(buf_ptr, buf_end - buf_ptr);
+        BitReader br(bufPtr, bufEnd - bufPtr);
 
-        switch (start_code) {
+        switch (startCode) {
         case SOI:
             /* nothing to do on SOI */
             break;
         case SOF0:
-            if (MPP_OK == jpeg_parser_decode_sof(&br, out_width, out_height)) {
-                return MPP_OK;
-            } else {
-                return MPP_NOK;
-            }
+            return jpeg_parser_decode_sof(&br, outWidth, outHeight);
         case DHT:
-            if (MPP_OK != jpeg_parser_decode_dht(&br)) {
+            if (!jpeg_parser_decode_dht(&br)) {
                 ALOGE("huffman table decode error");
-                return MPP_NOK;
+                return false;
             }
             break;
         case DQT:
-            if (MPP_OK != jpeg_parser_decode_dqt(&br)) {
+            if (!jpeg_parser_decode_dqt(&br)) {
                 ALOGE("quantize tables decode error");
-                return MPP_NOK;
+                return false;
             }
             break;
         case COM:
         case EOI:
         case SOS:
         case DRI:
-            if (MPP_OK != jpeg_parser_decode_dri(&br)) {
+            if (!jpeg_parser_decode_dri(&br)) {
                 ALOGE("dri decode error");
-                return MPP_NOK;
+                return false;
             }
             break;
         case SOF2:
@@ -288,24 +276,24 @@ MPP_RET jpeg_parser_get_dimens(char *buf, size_t buf_size,
         case SOF48:
         case LSE:
         case JPG:
-            section_finish = 0;
-            ALOGD("jpeg: unsupported coding type (0x%x)", start_code);
+            sectionFinish = 0;
+            ALOGD("jpeg: unsupported coding type (0x%x)", startCode);
             break;
         default:
-            section_finish = 0;
-            ALOGV("unsupported coding type 0x%x switch.", start_code);
+            sectionFinish = 0;
+            ALOGV("unsupported coding type 0x%x switch.", startCode);
             break;
         }
 
-        if (!section_finish) {
-            if (MPP_OK != jpeg_parser_skip_section(&br)) {
-                ALOGV("Fail to skip section 0xFF%02x!", start_code);
-                return MPP_NOK;
+        if (!sectionFinish) {
+            if (!jpeg_parser_skip_section(&br)) {
+                ALOGV("Fail to skip section 0xFF%02x!", startCode);
+                return false;
             }
         }
 
-        buf_ptr = br.data();
+        bufPtr = br.data();
     }
 
-    return MPP_NOK;
+    return true;
 }

@@ -19,7 +19,6 @@ cc_library_shared {
     srcs: [
         "src/Utils.cpp",
         "src/QList.cpp",
-        "src/MpiDebug.cpp",
         "src/BitReader.cpp",
         "src/JpegParser.cpp",
         "src/ExifBuilder.cpp",
@@ -30,6 +29,7 @@ cc_library_shared {
 
     shared_libs: [
         "libutils",
+        "libcutils",
         "liblog",
         "libmpp",
         "librga",

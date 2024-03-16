@@ -8,14 +8,13 @@
 
 #define PACKET_SIZE             2048
 
-int main()
-{
-    bool ret = false;
-    char *buf = NULL;
+int main() {
+    bool err = false;
+    char *data = NULL;
     size_t size = PACKET_SIZE;
 
-    buf = (char *)malloc(size);
-    if (NULL == buf) {
+    data = (char *)malloc(size);
+    if (!data) {
         ALOGE("dec_test malloc failed");
         return 0;
     }
@@ -23,39 +22,42 @@ int main()
     MpiJpegEncoder encoder;
     MpiJpegEncoder::OutputPacket_t pktOut;
 
-    ret = encoder.prepareEncoder();
-    if (!ret) {
+    memset(&pktOut, 0, sizeof(pktOut));
+
+    err = encoder.prepareEncoder();
+    if (!err) {
         ALOGE("failed to prepare JPEG encoder");
-        goto ENCODE_OUT;
+        goto cleanUp;
     }
 
-    ret = encoder.updateEncodeCfg(720 /*width*/, 1080 /*height*/,
-                                  MpiJpegEncoder::INPUT_FMT_YUV420SP);
-    if (!ret) {
+    err = encoder.updateEncodeCfg(
+            720 /*width*/, 1080 /*height*/, MpiJpegEncoder::INPUT_FMT_YUV420SP);
+    if (!err) {
         ALOGE("failed to update encode config");
-        goto ENCODE_OUT;
+        goto cleanUp;
     }
 
-    memset(&pktOut, 0, sizeof(MpiJpegEncoder::OutputPacket_t));
-    ret = encoder.encodeFrame(buf, &pktOut);
-    if (!ret) {
+    err = encoder.encodeFrame(data, &pktOut);
+    if (!err) {
         ALOGE("failed to encode packet");
-        goto ENCODE_OUT;
+        goto cleanUp;
     }
 
     /* TODO - Get diaplay for the PacketOut.
        * - Pakcet address: pktOut.data
        * - Pakcet size: pktOut.size */
 
-    /* Output frame buffers within limits, so release frame buffer if one
+    /* output buffer count within limits, so release frame buffer if one
        frame has been display successful. */
     encoder.deinitOutputPacket(&pktOut);
 
-ENCODE_OUT:
     encoder.flushBuffer();
 
-    if (buf)
-        free(buf);
+cleanUp:
+    if (data) {
+        free(data);
+        data = NULL;
+    }
 
     return 0;
 }

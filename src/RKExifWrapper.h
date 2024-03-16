@@ -23,23 +23,23 @@
 #include "RkExifInfo.h"
 
 typedef struct {
-    /* pointer to thumbnail image, or NULL if not available */
-    uint8_t    *thumbData;
-    int32_t     thumbSize;
+    /* pointer to thumbnail image */
+    uint8_t *thumbData;
+    int32_t  thumbSize;
 
     RkExifInfo *exifInfo;
-} ExifParam;
+} ExifInfo;
 
 class RKExifWrapper {
 public:
     /*
-     * generate the exif app1 marker header from RKExifData
+     * create jpeg exif app1 marker data
      *
-     * param[in]  param   - ExifParam
+     * param[in]  param   - ExifData
      * param[out] outBuf  - pointer to output buffer pointer.
      * param[out] size    - pointer to hold the buf number bytes
      */
-    static bool getExifHeader(ExifParam param, uint8_t **outBuf, int *size);
+    static bool getExifData(ExifInfo info, uint8_t **outBuf, int32_t *size);
 };
 
 #endif  // __RK_EXIF_WRAPPER_H__

@@ -35,22 +35,19 @@ typedef struct list_node {
     int          size;
 } list_node;
 
-static inline void list_node_init(list_node *node)
-{
+static inline void list_node_init(list_node *node) {
     node->prev = node->next = node;
 }
 
 static inline void list_node_init_with_key_and_size(list_node *node,
                                                     int key,
-                                                    int size)
-{
+                                                    int size) {
     list_node_init(node);
     node->key   = key;
     node->size  = size;
 }
 
-static list_node* create_list(void *data, int size, int key)
-{
+static list_node* create_list(void *data, int size, int key) {
     list_node *node = (list_node*)malloc(sizeof(list_node) + size);
     if (node) {
         void *dst = (void*)(node + 1);
@@ -62,26 +59,22 @@ static list_node* create_list(void *data, int size, int key)
     return node;
 }
 
-static inline void _q_list_add(list_node * _new, list_node * prev, list_node * next)
-{
+static inline void _q_list_add(list_node * _new, list_node * prev, list_node * next) {
     next->prev = _new;
     _new->next = next;
     _new->prev = prev;
     prev->next = _new;
 }
 
-static inline void q_list_add(list_node *_new, list_node *head)
-{
+static inline void q_list_add(list_node *_new, list_node *head) {
     _q_list_add(_new, head, head->next);
 }
 
-static inline void q_list_add_tail(list_node *_new, list_node *head)
-{
+static inline void q_list_add_tail(list_node *_new, list_node *head) {
     _q_list_add(_new, head->prev, head);
 }
 
-static void release_list(list_node *node, void *data, int size)
-{
+static void release_list(list_node *node, void *data, int size) {
     void *src = (void*)(node + 1);
     if (node->size == size) {
         if (data)
@@ -95,20 +88,17 @@ static void release_list(list_node *node, void *data, int size)
     free(node);
 }
 
-static inline void _q_list_del(list_node *prev, list_node *next)
-{
+static inline void _q_list_del(list_node *prev, list_node *next) {
     next->prev = prev;
     prev->next = next;
 }
 
-static inline void q_list_del_init(list_node *node)
-{
+static inline void q_list_del_init(list_node *node) {
     _q_list_del(node->prev, node->next);
     list_node_init(node);
 }
 
-static inline void _list_del_node_no_lock(list_node *node, void *data, int size)
-{
+static inline void _list_del_node_no_lock(list_node *node, void *data, int size) {
     q_list_del_init(node);
     release_list(node, data, size);
 }
@@ -116,8 +106,7 @@ static inline void _list_del_node_no_lock(list_node *node, void *data, int size)
 QList::QList(node_destructor func)
     : destroy(NULL),
       head(NULL),
-      count(0)
-{
+      count(0) {
     destroy = func;
     head = (list_node*)malloc(sizeof(list_node));
     if (NULL == head) {
@@ -127,16 +116,14 @@ QList::QList(node_destructor func)
     }
 }
 
-QList::~QList()
-{
+QList::~QList() {
     flush();
     if (head) free(head);
     head = NULL;
     destroy = NULL;
 }
 
-int QList::add_at_head(void *data, int size)
-{
+int QList::add_at_head(void *data, int size) {
     int ret = -EINVAL;
     if (head) {
         list_node *node = create_list(data, size, 0);
@@ -151,8 +138,7 @@ int QList::add_at_head(void *data, int size)
     return ret;
 }
 
-int QList::add_at_tail(void *data, int size)
-{
+int QList::add_at_tail(void *data, int size) {
     int ret = -EINVAL;
     if (head) {
         list_node *node = create_list(data, size, 0);
@@ -167,8 +153,7 @@ int QList::add_at_tail(void *data, int size)
     return ret;
 }
 
-int QList::del_at_head(void *data, int size)
-{
+int QList::del_at_head(void *data, int size) {
     int ret = -EINVAL;
     if (head && count) {
         _list_del_node_no_lock(head->next, data, size);
@@ -178,8 +163,7 @@ int QList::del_at_head(void *data, int size)
     return ret;
 }
 
-int QList::del_at_tail(void *data, int size)
-{
+int QList::del_at_tail(void *data, int size) {
     int ret = -EINVAL;
     if (head && count) {
         _list_del_node_no_lock(head->prev, data, size);
@@ -189,20 +173,17 @@ int QList::del_at_tail(void *data, int size)
     return ret;
 }
 
-int QList::list_is_empty()
-{
+int QList::list_is_empty() {
     int ret = (count == 0);
     return ret;
 }
 
-int QList::list_size()
-{
+int QList::list_size() {
     int ret = count;
     return ret;
 }
 
-int QList::add_by_key(void *data, int size, int *key)
-{
+int QList::add_by_key(void *data, int size, int *key) {
     int ret = 0;
     if (head) {
         int list_key = get_key();
@@ -219,8 +200,7 @@ int QList::add_by_key(void *data, int size, int *key)
     return ret;
 }
 
-int QList::del_by_key(void *data, int size, int key)
-{
+int QList::del_by_key(void *data, int size, int key) {
     int ret = 0;
     if (head && count) {
         struct list_node *tmp = head->next;
@@ -237,16 +217,14 @@ int QList::del_by_key(void *data, int size, int key)
 }
 
 
-int QList::show_by_key(void *data, int key)
-{
+int QList::show_by_key(void *data, int key) {
     int ret = -EINVAL;
     (void)data;
     (void)key;
     return ret;
 }
 
-int QList::flush()
-{
+int QList::flush() {
     if (head) {
         while (count) {
             list_node* node = head->next;
@@ -262,42 +240,34 @@ int QList::flush()
     return 0;
 }
 
-void QList::lock()
-{
+void QList::lock() {
     mMutex.lock();
 }
 
-void QList::unlock()
-{
+void QList::unlock() {
     mMutex.unlock();
 }
 
-int QList::trylock()
-{
+int QList::trylock() {
     return mMutex.trylock();
 }
 
-Mutex *QList::mutex()
-{
+Mutex *QList::mutex() {
     return &mMutex;
 }
 
-int QList::get_key()
-{
+int QList::get_key() {
     return keys++;
 }
 
-void QList::wait()
-{
+void QList::wait() {
     mCondition.wait(mMutex);
 }
 
-int QList::wait(int timeout)
-{
+int QList::wait(int timeout) {
     return mCondition.timedwait(mMutex, timeout);
 }
 
-void QList::signal()
-{
+void QList::signal() {
     mCondition.signal();
 }

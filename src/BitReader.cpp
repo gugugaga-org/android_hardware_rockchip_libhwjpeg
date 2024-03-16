@@ -23,16 +23,13 @@ BitReader::BitReader(const uint8_t *data, size_t size)
       mSize(size),
       mReservoir(0),
       mNumBitsLeft(0),
-      mOverRead(false)
-{
+      mOverRead(false) {
 }
 
-BitReader::~BitReader()
-{
+BitReader::~BitReader() {
 }
 
-bool BitReader::fillReservoir()
-{
+bool BitReader::fillReservoir() {
     if (mSize == 0) {
         mOverRead = true;
         return false;
@@ -52,22 +49,19 @@ bool BitReader::fillReservoir()
     return true;
 }
 
-uint32_t BitReader::getBits(size_t n)
-{
+uint32_t BitReader::getBits(size_t n) {
     uint32_t ret;
     CHECK(getBitsGraceful(n, &ret));
     return ret;
 }
 
-uint32_t BitReader::getBitsWithFallback(size_t n, uint32_t fallback)
-{
+uint32_t BitReader::getBitsWithFallback(size_t n, uint32_t fallback) {
     uint32_t ret = fallback;
     (void)getBitsGraceful(n, &ret);
     return ret;
 }
 
-bool BitReader::getBitsGraceful(size_t n, uint32_t *out)
-{
+bool BitReader::getBitsGraceful(size_t n, uint32_t *out) {
     if (n > 32) {
         return false;
     }
@@ -96,8 +90,7 @@ bool BitReader::getBitsGraceful(size_t n, uint32_t *out)
     return true;
 }
 
-bool BitReader::skipBits(size_t n)
-{
+bool BitReader::skipBits(size_t n) {
     uint32_t dummy;
     while (n > 32) {
         if (!getBitsGraceful(32, &dummy)) {
@@ -112,8 +105,7 @@ bool BitReader::skipBits(size_t n)
     return true;
 }
 
-void BitReader::putBits(uint32_t x, size_t n)
-{
+void BitReader::putBits(uint32_t x, size_t n) {
     if (mOverRead) {
         return;
     }
@@ -128,12 +120,10 @@ void BitReader::putBits(uint32_t x, size_t n)
     mNumBitsLeft += n;
 }
 
-size_t BitReader::numBitsLeft() const
-{
+size_t BitReader::numBitsLeft() const {
     return mSize * 8 + mNumBitsLeft;
 }
 
-const uint8_t *BitReader::data() const
-{
+const uint8_t *BitReader::data() const {
     return mData - (mNumBitsLeft + 7) / 8;
 }

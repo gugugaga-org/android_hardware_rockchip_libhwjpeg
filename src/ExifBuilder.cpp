@@ -63,8 +63,7 @@ static const struct {
     { EXIF_FORMAT_DOUBLE,    "Double",    8 },
 };
 
-static const char* exif_ifd_get_name(ExifIfd ifd)
-{
+static const char* exif_ifd_get_name(ExifIfd ifd) {
     unsigned int i;
 
     for (i = 0; ExifIfdTable[i].name; i++)
@@ -74,8 +73,7 @@ static const char* exif_ifd_get_name(ExifIfd ifd)
     return (ExifIfdTable[i].name);
 }
 
-static unsigned char exif_format_get_size(ExifFormat format)
-{
+static unsigned char exif_format_get_size(ExifFormat format) {
     unsigned int i;
 
     for (i = 0; ExifFormatTable[i].size; i++)
@@ -84,8 +82,7 @@ static unsigned char exif_format_get_size(ExifFormat format)
     return 0;
 }
 
-void exif_set_short(unsigned char *b, ExifByteOrder order, uint16_t value)
-{
+void exif_set_short(unsigned char *b, ExifByteOrder order, uint16_t value) {
     if (!b) return;
     switch (order) {
     case EXIF_BYTE_ORDER_MOTOROLA:
@@ -99,8 +96,7 @@ void exif_set_short(unsigned char *b, ExifByteOrder order, uint16_t value)
     }
 }
 
-void exif_set_long(unsigned char *b, ExifByteOrder order, uint32_t value)
-{
+void exif_set_long(unsigned char *b, ExifByteOrder order, uint32_t value) {
     if (!b) return;
     switch (order) {
     case EXIF_BYTE_ORDER_MOTOROLA:
@@ -118,16 +114,14 @@ void exif_set_long(unsigned char *b, ExifByteOrder order, uint32_t value)
     }
 }
 
-void exif_set_rational(unsigned char *b, ExifByteOrder order, ExifRational value)
-{
+void exif_set_rational(unsigned char *b, ExifByteOrder order, ExifRational value) {
 	if (!b) return;
 	exif_set_long(b, order, value.numerator);
 	exif_set_long(b + 4, order, value.denominator);
 }
 
 void exif_setup_entry(ExifEntry *entry, ExifTag tag, ExifFormat format,
-                      unsigned long components, char *data)
-{
+                      unsigned long components, char *data) {
     int size = exif_format_get_size(format) * components;
 
     entry->tag = tag;
@@ -139,8 +133,7 @@ void exif_setup_entry(ExifEntry *entry, ExifTag tag, ExifFormat format,
 
 void exif_setup_rational_entry(ExifEntry *entry, ExifTag tag,
                                ExifFormat format, unsigned long components,
-                               ExifByteOrder order, ExifRational *rat)
-{
+                               ExifByteOrder order, ExifRational *rat) {
     unsigned long i;
     /* rational format - 8 bytes */
     int size = exif_format_get_size(format) * components;
@@ -157,8 +150,7 @@ void exif_setup_rational_entry(ExifEntry *entry, ExifTag tag,
 
 void exif_setup_short_entry(ExifEntry *entry, ExifTag tag, ExifFormat format,
                             unsigned long components, ExifByteOrder order,
-                            uint16_t value)
-{
+                            uint16_t value) {
     int size = exif_format_get_size(format) * components;
 
     entry->tag = tag;
@@ -171,8 +163,7 @@ void exif_setup_short_entry(ExifEntry *entry, ExifTag tag, ExifFormat format,
 
 void exif_setup_long_entry(ExifEntry *entry, ExifTag tag, ExifFormat format,
                            unsigned long components, ExifByteOrder order,
-                           uint32_t value)
-{
+                           uint32_t value) {
     int size = exif_format_get_size(format) * components;
 
     entry->tag = tag;
@@ -183,8 +174,7 @@ void exif_setup_long_entry(ExifEntry *entry, ExifTag tag, ExifFormat format,
     exif_set_long(entry->data, order, value);
 }
 
-void exif_release_entry(ExifEntry *entry)
-{
+void exif_release_entry(ExifEntry *entry) {
     entry->components = 0;
 
     if (entry->data) {
@@ -194,8 +184,7 @@ void exif_release_entry(ExifEntry *entry)
 }
 
 static void exif_save_data_entry(ExifData *edata, ExifEntry *entry,
-                                 unsigned char **buf, int *len, int offset)
-{
+                                 unsigned char **buf, int *len, int offset) {
     unsigned int byte_size;
     // offset to entry value
     unsigned int doff;
@@ -258,8 +247,7 @@ static void exif_save_data_entry(ExifData *edata, ExifEntry *entry,
 }
 
 static bool exif_save_data_content(ExifData *edata, ExifContent *ifd,
-                                   unsigned char **buf, int *len, int offset)
-{
+                                   unsigned char **buf, int *len, int offset) {
     int j, n_ptr = 0, n_thumb = 0;
     ExifIfd i;
     // the new number bytes of raw EXIF data
@@ -456,8 +444,7 @@ static bool exif_save_data_content(ExifData *edata, ExifContent *ifd,
     return true;
 }
 
-bool exif_general_build(ExifData *edata, unsigned char **buf, int *len)
-{
+bool exif_general_build(ExifData *edata, unsigned char **buf, int *len) {
     if (!edata || !buf || !len) {
         ALOGE("found invalid input param.");
         return false;

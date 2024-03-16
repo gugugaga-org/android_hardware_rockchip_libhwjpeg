@@ -28,87 +28,68 @@ public:
     MpiJpegDecoder();
     ~MpiJpegDecoder();
 
-    typedef struct {
-        /*
-         * output address memory allocated by decoder default, and you can
-         * designated the "outputPhyAddr" to specifies output address.
-         */
-        uint32_t   outputPhyAddr;
-
-        /*
-         * NOTE: since the output frame buffer send to vpu is aligned, it is
-         * neccessary to crop output with JPEG image dimens.
-         *
-         * vpu frame buffer width: FrameWidth
-         * actual image buffer width: DisplayWidth
-         */
-        uint32_t   FrameWidth;         // buffer horizontal stride
-        uint32_t   FrameHeight;        // buffer vertical stride
-        uint32_t   DisplayWidth;       // valid width for display
-        uint32_t   DisplayHeight;      // valid height for display
-        uint32_t   ErrorInfo;          // error information
-        uint32_t   OutputSize;
-
-        char      *MemVirAddr;
-        uint32_t   MemPhyAddr;
-
-        void      *FrameHandler;       // MppFrame handler
-    } OutputFrame_t;
-
-    bool prepareDecoder();
-    void flushBuffer();
-
-    /**
-     * output frame buffers within limits, so release frame buffer if one
-     * frame has been display successful.
-     */
-    void deinitOutputFrame(OutputFrame_t *aframeOut);
-
-    bool sendpacket(char* inputBuf, size_t length, int outPhyAddr = 0);
-    bool getoutframe(OutputFrame_t *aframeOut);
-
-    bool decodePacket(char* buf, size_t length, OutputFrame_t *aframeOut);
-    bool decodeFile(const char *inputFile, const char *outputFile);
-
-private:
+    /* All supported output formats */
     typedef enum {
         OUT_FORMAT_YUV420SP =  MPP_FMT_YUV420SP,
         OUT_FORMAT_ARGB     =  MPP_FMT_ARGB8888,
     } OutputFormat;
 
-    MppCtx          mMppCtx;
-    MppApi         *mMpi;
+    typedef struct {
+        /* Input parameters, User-specified output buffer address */
+        int32_t outputPhyAddr;
 
-    int             mInitOK;
-    bool            mFdOutput;
-    bool            mOutputCrop;
-    uint32_t        mDecWidth;
-    uint32_t        mDecHeight;
-    // bit per pixel
-    float           mBpp;
-    int             mOutputFmt;
-    uint32_t        mPacketCount;
+        /* Output parameters */
+        int32_t FrameWidth;        // buffer horizontal stride
+        int32_t FrameHeight;       // buffer vertical stride
+        int32_t DisplayWidth;      // valid width for display
+        int32_t DisplayHeight;     // valid height for display
+        int32_t ErrorInfo;         // error information
+        int32_t OutputSize;
 
-    QList          *mPackets;
-    QList          *mFrames;
+        char   *MemVirAddr;        // output buffer address
+        int32_t MemPhyAddr;
+
+        void   *Handle;            // frame handle, used to release cache buffer
+    } OutputFrame_t;
+
+    bool prepareDecoder();
+
+    bool flushBuffer();
 
     /*
-     * packet buffer group
-     *      - packets in I/O, can be ion buffer or normal buffer
-     * frame buffer group
-     *      - frames in I/O, normally should be a ion buffer group
+     * output buffer count within limits, so release frame buffer if the
+     * frame has been display successfully.
      */
-    MppBufferGroup  mPacketGroup;
-    MppBufferGroup  mFrameGroup;
+    bool deinitOutputFrame(OutputFrame_t *frameOut);
 
-    /* dump input & output for debug */
-    FILE           *mInputFile;
-    FILE           *mOutputFile;
+    /* Asynchronous decoding interface */
+    bool sendpacket(char* data, size_t size, int32_t outputFd = 0);
+    bool getoutframe(OutputFrame_t *frameOut);
 
-    bool reInitDecoder();
+    /* Synchronous decoding interface */
+    bool decodePacket(char* data, size_t size, OutputFrame_t *frameOut);
+    bool decodeFile(const char *inputFile, const char *outputFile);
 
-    void setupOutputFrameFromMppFrame(OutputFrame_t *frameOut, MppFrame frame);
-    void cropOutputFrameIfNeccessary(OutputFrame_t *frameOut);
+private:
+    MppCtx   mMppCtx;
+    MppApi  *mMppMpi;
+
+    int32_t  mWidth;
+    int32_t  mHeight;
+    bool     mStateReady;
+    bool     mOutputCrop;
+    int32_t  mOutputFmt;
+    int32_t  mPacketCount;
+    int32_t  mFrameCount;
+
+    QList   *mFrames;
+
+    MppBufferGroup mMemGroup;
+
+    bool reinitDecoder();
+
+    bool setupOutFrameFromMppFrame(OutputFrame_t *frameOut, MppFrame frame);
+    bool cropOutputFrameIfNeccessary(OutputFrame_t *frameOut);
 };
 
 #endif  // __MPI_JPEG_DECODER_H__

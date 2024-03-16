@@ -30,31 +30,19 @@
 class CommonUtil {
 public:
     /* global dump and store methods */
-    static void dumpMppFrameToFile(MppFrame frame, FILE *file);
-    static void dumpMppPacketToFile(MppPacket packet, FILE *file);
-    static void dumpDataToFile(char *data, size_t size, FILE *file);
-    static void dumpDataToFile(char *data, size_t size, const char *fileName);
-    static void dumpDmaFdToFile(int fd, size_t size, FILE *file);
+    static bool dumpDataToFile(char *data, size_t size, const char *fileName);
+    static bool dumpDmaFdToFile(int fd, size_t size, const char *fileName);
     // allocate buffer memory inside, don't forget to free it.
-    static MPP_RET storeFileData(const char *file_name, char **data, size_t *length);
+    static bool storeFileData(const char *fileName, char **data, size_t *size);
 
     /* yuv image related operations */
-    static MPP_RET cropImage(
+    static bool cropImage(
             int src, int dst, int srcWidth, int srcHeight,
             int srcWstride, int srcHstride, int dstWidth, int dstHeight);
-    static MPP_RET readImage(
-            char *src, char *dst, int width, int height,
-            int wstride, int hstride, MppFrameFormat fmt);
-
-    /*  set\get __system_property_ */
-    static int envGetU32(const char *name, uint32_t *value, uint32_t defaultValue);
-    static int envGetStr(const char *name, const char **value, const char *defaultValue);
-    static int envSetU32(const char *name, uint32_t value);
-    static int envSetStr(const char *name, char *value);
 
     /* other util methods */
     static bool isValidDmaFd(int fd);
-    static void setPerformanceMode(int on);
+    static bool setPerformanceMode(int on);
 };
 
 #endif //__UTILS_H__

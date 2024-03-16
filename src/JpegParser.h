@@ -19,7 +19,7 @@
 #ifndef __JPEGD_PARSER_H__
 #define __JPEGD_PARSER_H__
 
-#include <mpp_err.h>
+#include <stdio.h>
 
 #define MAX_COMPONENTS                    (3)       /* for JFIF: YCbCr */
 
@@ -105,7 +105,7 @@ enum JpegMarker {
     /* 0x02 -> 0xbf reserved */
 };
 
-MPP_RET jpeg_parser_get_dimens(char *buf, size_t buf_size,
-                               uint32_t *out_width, uint32_t *out_height);
+bool jpeg_parser_get_dimens(
+        char *data, size_t size, int32_t *outWidth, int32_t *outHeight);
 
 #endif  // __JPEGD_PARSER_H__

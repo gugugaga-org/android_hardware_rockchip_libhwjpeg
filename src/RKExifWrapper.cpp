@@ -25,8 +25,7 @@
 
 #include "RKExifWrapper.h"
 
-static void parseExifInfo(RkExifInfo *exifInfo, ExifData *edata)
-{
+static void parseExifInfo(RkExifInfo *exifInfo, ExifData *edata) {
     RkGPSInfo *gpsInfo = exifInfo->gpsInfo;
     ExifContent *ifd;
     // Max rational size(GPS Info) - 3
@@ -310,26 +309,26 @@ static void parseExifInfo(RkExifInfo *exifInfo, ExifData *edata)
                            0x01, edata->order, 0x06);
 }
 
-bool RKExifWrapper::getExifHeader(ExifParam param, uint8_t **outBuf, int *size)
-{
-    bool ret = false;
+bool RKExifWrapper::getExifData(ExifInfo info, uint8_t **outBuf, int32_t *size) {
+    bool     ret      = true;
     uint8_t *exifBuf  = NULL;
     int32_t  exifSize = 0;
-    ExifData eData;
+    ExifData exifData;
 
-    memset(&eData, 0, sizeof(ExifData));
-    eData.thumb_data = param.thumbData;
-    eData.thumb_size = param.thumbSize;
+    memset(&exifData, 0, sizeof(exifData));
+
+    exifData.thumb_data = info.thumbData;
+    exifData.thumb_size = info.thumbSize;
 
     static const unsigned char gApp1Header[] = { 0xff, 0xd8, 0xff, 0xe1 };
 
     /* parse from RkExifInfo to ExifData */
-    parseExifInfo(param.exifInfo, &eData);
+    parseExifInfo(info.exifInfo, &exifData);
 
-    if (!exif_general_build(&eData, &exifBuf, &exifSize)) {
-        ALOGE("failed to general exif from builder.");
-        ret = false;
-        goto END;
+    ret = exif_general_build(&exifData, &exifBuf, &exifSize);
+    if (!ret) {
+        ALOGE("failed to create jpeg exif data");
+        goto cleanUp;
     }
 
     // (SOI + App1Marker + App1Length + exifInfo)
@@ -337,27 +336,27 @@ bool RKExifWrapper::getExifHeader(ExifParam param, uint8_t **outBuf, int *size)
     *outBuf = (uint8_t*)malloc(exifSize + 6);
 
     memcpy(*outBuf, gApp1Header, 4);
-    // length of app1 exif part
+    // exif app1 data size
     exif_set_short(*outBuf + 4, EXIF_BYTE_ORDER_MOTOROLA, exifSize + 2);
 
     memcpy(*outBuf + 6, exifBuf, exifSize);
     *size = exifSize + 6;
 
-    ret = true;
+    ALOGV("get jpeg exif data, size %d",  *size);
 
-    ALOGV("get exif header, len %d",  *size);
-
-END:
+cleanUp:
     // release exif entry allocated at builder
-    for (int i = 0; i < EXIF_IFD_COUNT; i++) {
-        ExifContent ifd = eData.ifd[i];
+    for (int32_t i = 0; i < EXIF_IFD_COUNT; i++) {
+        ExifContent ifd = exifData.ifd[i];
         for (int j = 0; j < ifd.entry_count; j++) {
             exif_release_entry(&ifd.entries[j]);
         }
     }
 
-    if (exifBuf)
+    if (exifBuf) {
         free(exifBuf);
+        exifBuf = NULL;
+    }
 
     return ret;
 }

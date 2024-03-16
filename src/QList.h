@@ -37,8 +37,7 @@ public:
     void unlock();
     int  trylock();
 
-    class Autolock
-    {
+    class Autolock {
     public:
         explicit inline Autolock(Mutex& mutex) : mLock(mutex) { mLock.lock(); }
         explicit inline Autolock(Mutex* mutex) : mLock(*mutex) { mLock.lock(); }
@@ -56,28 +55,23 @@ private:
     Mutex &operator = (const Mutex&);
 };
 
-inline Mutex::Mutex()
-{
+inline Mutex::Mutex() {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&mMutex, &attr);
     pthread_mutexattr_destroy(&attr);
 }
-inline Mutex::~Mutex()
-{
+inline Mutex::~Mutex() {
     pthread_mutex_destroy(&mMutex);
 }
-inline void Mutex::lock()
-{
+inline void Mutex::lock() {
     pthread_mutex_lock(&mMutex);
 }
-inline void Mutex::unlock()
-{
+inline void Mutex::unlock() {
     pthread_mutex_unlock(&mMutex);
 }
-inline int Mutex::trylock()
-{
+inline int Mutex::trylock() {
     return pthread_mutex_trylock(&mMutex);
 }
 
@@ -103,28 +97,22 @@ private:
     pthread_cond_t mCond;
 };
 
-inline Condition::Condition()
-{
+inline Condition::Condition() {
     pthread_cond_init(&mCond, NULL);
 }
-inline Condition::~Condition()
-{
+inline Condition::~Condition() {
     pthread_cond_destroy(&mCond);
 }
-inline int Condition::wait(Mutex& mutex)
-{
+inline int Condition::wait(Mutex& mutex) {
     return pthread_cond_wait(&mCond, &mutex.mMutex);
 }
-inline int Condition::wait(Mutex* mutex)
-{
+inline int Condition::wait(Mutex* mutex) {
     return pthread_cond_wait(&mCond, &mutex->mMutex);
 }
-inline int Condition::timedwait(Mutex& mutex, int timeout)
-{
+inline int Condition::timedwait(Mutex& mutex, int timeout) {
     return timedwait(&mutex, timeout);
 }
-inline int Condition::timedwait(Mutex* mutex, int timeout)
-{
+inline int Condition::timedwait(Mutex* mutex, int timeout) {
     struct timespec ts;
 
     clock_gettime(CLOCK_REALTIME_COARSE, &ts);
@@ -137,8 +125,7 @@ inline int Condition::timedwait(Mutex* mutex, int timeout)
 
     return pthread_cond_timedwait(&mCond, &mutex->mMutex, &ts);
 }
-inline int Condition::signal()
-{
+inline int Condition::signal() {
     return pthread_cond_signal(&mCond);
 }
 

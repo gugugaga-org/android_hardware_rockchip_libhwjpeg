@@ -8,20 +8,20 @@ HwJpeg 库用于支持 Rockchip 平台 JPEG 硬编解码，是平台 MPP（Media
 - src：HwJpeg 库实现代码
 - test：HwJpeg 测试实例
 
-> 工程代码使用 mk 文件组织，在 Android SDK 环境下直接编译使用即可。
+> 工程代码使用 bp 文件组织，在 Android SDK 环境下直接编译使用即可。
 
 2 MpiJpegDecoder
 MpiJpegDecoder 类是平台 JPEG 硬解码的封装，支持输入 JPG 图片及 MJPEG 码流，同时支持同步及
 异步解码方式。
 
-- decodePacket(char* data, size_t size, OutputFrame_t *aframeOut);
-- decodeFile(const char *input_file, const char *output_file);
+- decodePacket(char* data, size_t size, OutputFrame_t *frameOut);
+- decodeFile(const char *inputFile, const char *outputFile);
 
 decodePacket & decodeFile 为同步解码方式，同步解码方式使用简单，阻塞等待解码输出，
 OutputFrame_t 为解码输出封装，包含输出帧宽、高、物理地址、虚拟地址等信息。
 
-- sendpacket(char* input_buf, size_t buf_len);
-- getoutframe(OutputFrame_t *aframeOut);
+- sendpacket(char* data, size_t size);
+- getoutframe(OutputFrame_t *frameOut);
 
 sendpacket & getoutframe 用于配合实现异步解码输出，应用端处理开启两个线程，一
 个线程送输入 sendpacket，另一个线程异步取输出 getoutframe。
@@ -37,36 +37,44 @@ sendpacket & getoutframe 用于配合实现异步解码输出，应用端处理�
 
 解码使用示例：
 ```
-MpiJpegDecoder decoder;
-MpiJpegDecoder::OutputFrame_t frameOut;
+    MpiJpegDecoder decoder;
+    MpiJpegDecoder::OutputFrame_t frameOut;
 
-ret = decoder.prepareDecoder();
-if (!ret) {
-    ALOGE("failed to prepare JPEG decoder");
-    goto DECODE_OUT;
-}
+    memset(&frameOut, 0, sizeof(frameOut));
 
-memset(&frameOut, 0, sizeof(MpiJpegDecoder::OutputFrame_t));
-ret = decoder.decodePacket(buf, size, &frameOut);
-if (!ret) {
-    ALOGE("failed to decode packet");
-    goto DECODE_OUT;
-}
+    err = decoder.prepareDecoder();
+    if (!err) {
+        ALOGE("failed to prepare JPEG decoder");
+        goto cleanUp;
+    }
 
-decoder.deinitOutputFrame(&frameOut);
-decoder.flushBuffer();
+    err = decoder.decodePacket(data, size, &frameOut);
+    if (!err) {
+        ALOGE("failed to decode packet");
+        goto cleanUp;
+    }
+
+    /* TODO - Get diaplay for the frameOut.
+          * - frame address: frameOut.MemVirAddr
+          * - frame size: frameOut.OutputSize */
+
+    /* output buffer count within limits, so release frame buffer if one
+       frame has been display successfully. */
+    decoder.deinitOutputFrame(&frameOut);
+
+    decoder.flushBuffer();
 ```
 
 3 MpiJpegEncoder
 MpiJpegEncoder 类是平台 JPEG 硬编码的封装，目前主要有三类接口提供：
 
-- encodeFrame(char *data, OutputPacket_t *aPktOut);
-- encodeFile(const char *input_file, const char *output_file);
+- encodeFrame(char *data, OutputPacket_t *packetOut);
+- encodeFile(const char *inputFile, const char *outputFile);
 
 encodeFrame & encodeFile 为同步阻塞编码方式，OutputPacket_t 为编码输出封装，
 包含输出数据的内存地址信息。
 
-- encode(EncInInfo *aInInfo, EncOutInfo *aOutInfo);
+- encode(EncInInfo *inInfo, EncOutInfo *outInfo);
 
 encode 输入数据类型为文件 fd，是为 cameraHal 设计的一套编码方式，输出 JPEG 图片
 包含编码缩略图、APP1 EXIF 头信息等。
@@ -76,34 +84,37 @@ encode 输入数据类型为文件 fd，是为 cameraHal 设计的一套编码�
 
 编码使用示例：
 ```
-MpiJpegEncoder encoder;
-MpiJpegEncoder::OutputPacket_t pktOut;
+    MpiJpegEncoder encoder;
+    MpiJpegEncoder::OutputPacket_t pktOut;
 
-ret = encoder.prepareEncoder();
-if (!ret) {
-    ALOGE("failed to prepare JPEG encoder");
-    goto ENCODE_OUT;
-}
+    memset(&pktOut, 0, sizeof(pktOut));
 
-ret = encoder.updateEncodeCfg(720 /*width*/, 1080 /*height*/,
-                              MpiJpegEncoder::INPUT_FMT_YUV420SP);
-if (!ret) {
-    ALOGE("failed to update encode config");
-    goto ENCODE_OUT;
-}
+    err = encoder.prepareEncoder();
+    if (!err) {
+        ALOGE("failed to prepare JPEG encoder");
+        goto cleanUp;
+    }
 
-memset(&pktOut, 0, sizeof(MpiJpegEncoder::OutputPacket_t));
-ret = encoder.encodeFrame(buf, &pktOut);
-if (!ret) {
-    ALOGE("failed to encode packet");
-    goto ENCODE_OUT;
-}
+    err = encoder.updateEncodeCfg(
+            720 /*width*/, 1080 /*height*/, MpiJpegEncoder::INPUT_FMT_YUV420SP);
+    if (!err) {
+        ALOGE("failed to update encode config");
+        goto cleanUp;
+    }
 
-/* TODO - Get diaplay for the PacketOut.
-   * - Pakcet address: pktOut.data
-   * - Pakcet size: pktOut.size */
+    err = encoder.encodeFrame(data, &pktOut);
+    if (!err) {
+        ALOGE("failed to encode packet");
+        goto cleanUp;
+    }
 
-/* Output frame buffers within limits, so release frame buffer if one
-   frame has been display successful. */
-encoder.deinitOutputPacket(&pktOut);
+    /* TODO - Get diaplay for the PacketOut.
+       * - Pakcet address: pktOut.data
+       * - Pakcet size: pktOut.size */
+
+    /* output buffer count within limits, so release frame buffer if one
+       frame has been display successful. */
+    encoder.deinitOutputPacket(&pktOut);
+
+    encoder.flushBuffer();
 ```

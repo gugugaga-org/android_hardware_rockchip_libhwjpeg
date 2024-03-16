@@ -1,4 +1,4 @@
-//#define LOG_NDEBUG 0
+    //#define LOG_NDEBUG 0
 #define LOG_TAG "JpegDecoderTest"
 #include <utils/Log.h>
 
@@ -8,14 +8,13 @@
 
 #define PACKET_SIZE             2048
 
-int main()
-{
-    bool ret = false;
-    char *buf = NULL;
+int main() {
+    bool err = false;
+    char *data = NULL;
     size_t size = PACKET_SIZE;
 
-    buf = (char *)malloc(size);
-    if (NULL == buf) {
+    data = (char *)malloc(size);
+    if (!data) {
         ALOGE("dec_test malloc failed");
         return 0;
     }
@@ -23,32 +22,35 @@ int main()
     MpiJpegDecoder decoder;
     MpiJpegDecoder::OutputFrame_t frameOut;
 
-    ret = decoder.prepareDecoder();
-    if (!ret) {
+    memset(&frameOut, 0, sizeof(frameOut));
+
+    err = decoder.prepareDecoder();
+    if (!err) {
         ALOGE("failed to prepare JPEG decoder");
-        goto DECODE_OUT;
+        goto cleanUp;
     }
 
-    memset(&frameOut, 0, sizeof(MpiJpegDecoder::OutputFrame_t));
-    ret = decoder.decodePacket(buf, size, &frameOut);
-    if (!ret) {
+    err = decoder.decodePacket(data, size, &frameOut);
+    if (!err) {
         ALOGE("failed to decode packet");
-        goto DECODE_OUT;
+        goto cleanUp;
     }
 
-    /* TODO - get diaplay for the frameOut.
+    /* TODO - Get diaplay for the frameOut.
           * - frame address: frameOut.MemVirAddr
           * - frame size: frameOut.OutputSize */
 
-    /* Output frame buffers within limits, so release frame buffer if one
-       frame has been display successful. */
+    /* output buffer count within limits, so release frame buffer if one
+       frame has been display successfully. */
     decoder.deinitOutputFrame(&frameOut);
 
-DECODE_OUT:
     decoder.flushBuffer();
 
-    if (buf)
-        free(buf);
+cleanUp:
+    if (data) {
+        free(data);
+        data = NULL;
+    }
 
     return 0;
 }
