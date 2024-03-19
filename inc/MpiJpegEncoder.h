@@ -105,6 +105,13 @@ public:
     bool encode(EncInInfo *inInfo, EncOutInfo *outInfo);
 
 private:
+    typedef struct {
+        int32_t  fd;
+        int32_t  size;
+        uint8_t *exifData;
+        int32_t  exifSize;
+    } OutBuffer_t;
+
     MppCtx  mMppCtx;
     MppApi *mMppMpi;
     MppBufferGroup mMemGroup;
@@ -134,8 +141,7 @@ private:
 
     /* encode big image using user-specified fd */
     bool encodeBigImage(
-            EncInInfo *inInfo, int32_t outputFd,
-            int32_t outputSize, OutputPacket_t *packetOut);
+            EncInInfo *inInfo, OutBuffer_t *outBuffer, OutputPacket_t *packetOut);
 };
 
 #endif  // __MPI_JPEG_ENCODER_H__

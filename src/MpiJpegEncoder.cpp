@@ -647,8 +647,7 @@ cleanUp:
 }
 
 bool MpiJpegEncoder::encodeBigImage(
-        EncInInfo *inInfo, int32_t outputFd,
-        int32_t outputSize, OutputPacket_t *packetOut) {
+        EncInInfo *inInfo, OutBuffer_t *outBuffer, OutputPacket_t *packetOut) {
     MPP_RET   err          = MPP_OK;
     /* input frame and output packet */
     MppFrame  inFrame      = NULL;
@@ -668,6 +667,8 @@ bool MpiJpegEncoder::encodeBigImage(
         return false;
     }
 
+    MppEncUserData userData;
+
     /* update encode quality and config before encode */
     updateEncodeCfg(width, height, fmt, quant);
 
@@ -678,16 +679,27 @@ bool MpiJpegEncoder::encodeBigImage(
     mpp_frame_set_ver_stride(inFrame, height);
     mpp_frame_set_fmt(inFrame, (MppFrameFormat)fmt);
 
+    /* set exif data as user meta data */
+    if (outBuffer->exifData) {
+        MppMeta meta = mpp_frame_get_meta(inFrame);
+
+        // FIXME: remove 0xFFD8 marker
+        userData.pdata = outBuffer->exifData + 2;
+        userData.len = outBuffer->exifSize - 2;
+
+        mpp_meta_set_ptr(meta, KEY_USER_DATA, &userData);
+    }
+
     {
         /* import input buffer */
-        MppBufferInfo inputCommit;
-        memset(&inputCommit, 0, sizeof(MppBufferInfo));
+        MppBufferInfo input;
+        memset(&input, 0, sizeof(MppBufferInfo));
 
-        inputCommit.type = MPP_BUFFER_TYPE_ION;
-        inputCommit.size = getFrameSize(fmt, width, height);
-        inputCommit.fd   = inInfo->inputPhyAddr;
+        input.size = getFrameSize(fmt, width, height);
+        input.fd   = inInfo->inputPhyAddr;
+        input.type = (MppBufferType)(MPP_BUFFER_TYPE_ION | MPP_BUFFER_FLAGS_CACHABLE);
 
-        err = mpp_buffer_import(&inFrameBuf, &inputCommit);
+        err = mpp_buffer_import(&inFrameBuf, &input);
         if (err != MPP_OK) {
             ALOGE("failed to import input buffer");
             goto cleanUp;
@@ -697,14 +709,14 @@ bool MpiJpegEncoder::encodeBigImage(
 
     {
         /* import output buffer */
-        MppBufferInfo outputCommit;
-        memset(&outputCommit, 0, sizeof(MppBufferInfo));
+        MppBufferInfo output;
+        memset(&output, 0, sizeof(MppBufferInfo));
 
-        outputCommit.type = MPP_BUFFER_TYPE_ION;
-        outputCommit.size = outputSize;
-        outputCommit.fd   = outputFd;
+        output.size = outBuffer->size;
+        output.fd   = outBuffer->fd;
+        output.type = (MppBufferType)(MPP_BUFFER_TYPE_ION | MPP_BUFFER_FLAGS_CACHABLE);
 
-        err = mpp_buffer_import(&outPacketBuf, &outputCommit);
+        err = mpp_buffer_import(&outPacketBuf, &output);
         if (err != MPP_OK) {
             ALOGE("failed to import output buffer");
             goto cleanUp;
@@ -744,18 +756,14 @@ cleanUp:
 }
 
 bool MpiJpegEncoder::encode(EncInInfo *inInfo, EncOutInfo *outInfo) {
-    bool ret = false;
-    char *tmpBuf = NULL;
-
+    bool     ret      = true;
     /* exif information releated */
-    ExifInfo exifInfo;
     uint8_t *exifData = NULL;
     int32_t  exifSize = 0;
+    ExifInfo exifInfo;
 
+    OutBuffer_t outBuffer;
     OutputPacket_t packetOut;
-
-    /* APP0 header length of encoded picture default */
-    static const int g_app0_header_length = 20;
 
     if (!mStateReady) {
         return false;
@@ -779,8 +787,6 @@ bool MpiJpegEncoder::encode(EncInInfo *inInfo, EncOutInfo *outInfo) {
 
     time_start_record();
 
-    memset(&exifInfo, 0, sizeof(exifInfo));
-
     /* 1. encode thumbnail image */
     if (inInfo->doThumbNail) {
         if (!encodeThumbImage(inInfo, &packetOut)) {
@@ -790,6 +796,8 @@ bool MpiJpegEncoder::encode(EncInInfo *inInfo, EncOutInfo *outInfo) {
     }
 
     /* 2. create jpeg exif app1 marker data, insert thumb if nessessary */
+    memset(&exifInfo, 0, sizeof(exifInfo));
+
     exifInfo.exifInfo = (RkExifInfo *)inInfo->exifInfo;
     exifInfo.exifInfo->gpsInfo = (RkGPSInfo *)inInfo->gpsInfo;
     if (inInfo->doThumbNail) {
@@ -807,30 +815,21 @@ bool MpiJpegEncoder::encode(EncInInfo *inInfo, EncOutInfo *outInfo) {
     }
 
     /* 3. encode big image using user-specified fd */
-    ret = encodeBigImage(inInfo, outInfo->outputPhyAddr, outInfo->outBufLen, &packetOut);
+    memset(&outBuffer, 0, sizeof(outBuffer));
+
+    outBuffer.fd       = outInfo->outputPhyAddr;
+    outBuffer.size     = outInfo->outBufLen;
+    outBuffer.exifData = exifData;
+    outBuffer.exifSize = exifSize;
+
+    ret = encodeBigImage(inInfo, &outBuffer, &packetOut);
     if (!ret) {
         ALOGE("failed to get big image");
         goto cleanUp;
     }
 
-    /*
-     * 4. collect output jpeg file.
-     *
-     * SOI + App1Marker + App1Length + exifData + bigImage
-     *
-     * Note: output frame carried APP0 header information deault, so remove
-     * APP0 header first so that we can replace with APP1 header.
-     */
-    tmpBuf = (char *)malloc(packetOut.size + exifSize - g_app0_header_length);
-    memcpy(tmpBuf, exifData, exifSize);
-    memcpy(tmpBuf + exifSize,
-           packetOut.data + g_app0_header_length,
-           packetOut.size - g_app0_header_length);
-
-    outInfo->outBufLen = packetOut.size + exifSize - g_app0_header_length;
-
-    memset(outInfo->outputVirAddr, 0, outInfo->outBufLen);
-    memcpy(outInfo->outputVirAddr, tmpBuf, outInfo->outBufLen);
+    outInfo->outputVirAddr = packetOut.data;
+    outInfo->outBufLen = packetOut.size;
 
     /* dump output buffer if neccessary */
     if (gEncDebug & DEBUG_RECORD_OUT) {
@@ -853,10 +852,6 @@ cleanUp:
     if (exifData) {
         free(exifData);
         exifData = NULL;
-    }
-    if (tmpBuf) {
-        free(tmpBuf);
-        tmpBuf = NULL;
     }
 
     time_end_record("encodeImage");
