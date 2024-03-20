@@ -317,7 +317,7 @@ bool RKExifWrapper::getExifData(ExifInfo info, uint8_t **outBuf, int32_t *size) 
 
     memset(&exifData, 0, sizeof(exifData));
 
-    exifData.thumb_data = info.thumbData;
+    exifData.thumb_data = (uint8_t *)info.thumbData;
     exifData.thumb_size = info.thumbSize;
 
     static const unsigned char gApp1Header[] = { 0xff, 0xd8, 0xff, 0xe1 };

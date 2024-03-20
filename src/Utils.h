@@ -30,7 +30,7 @@
 class CommonUtil {
 public:
     /* global dump and store methods */
-    static bool dumpDataToFile(char *data, size_t size, const char *fileName);
+    static bool dumpDataToFile(void *data, size_t size, const char *fileName);
     static bool dumpDmaFdToFile(int fd, size_t size, const char *fileName);
     // allocate buffer memory inside, don't forget to free it.
     static bool storeFileData(const char *fileName, char **data, size_t *size);

@@ -42,7 +42,7 @@ public:
 
     typedef struct {
         /* Output parameters */
-        char     *data;
+        void     *data;
         int32_t   size;
         /* packet handle, used to release cache buffer */
         void     *handle;
@@ -51,7 +51,7 @@ public:
     typedef struct {
         /* input buffer information */
         int32_t     inputPhyAddr;
-        char       *inputVirAddr;
+        uint8_t    *inputVirAddr;
         int32_t     width;
         int32_t     height;
         InputFormat format;
@@ -72,7 +72,7 @@ public:
     typedef struct {
         /* Input parameters, User-specified output buffer address */
         int32_t  outputPhyAddr;
-        char    *outputVirAddr;
+        uint8_t *outputVirAddr;
         int32_t  outBufLen;
     } EncOutInfo;
 

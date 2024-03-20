@@ -49,7 +49,7 @@ void freeRgaBuffer(rga_buffer_handle_t handle) {
     releasebuffer_handle(handle);
 }
 
-bool CommonUtil::dumpDataToFile(char *data, size_t size, const char *fileName) {
+bool CommonUtil::dumpDataToFile(void *data, size_t size, const char *fileName) {
     FILE *file = NULL;
 
     file = fopen(fileName, "w+b");

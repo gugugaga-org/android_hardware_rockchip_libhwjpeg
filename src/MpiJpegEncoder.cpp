@@ -408,7 +408,7 @@ bool MpiJpegEncoder::encodeFrame(char *data, OutputPacket_t *packetOut) {
     if (runFrameEnc(inFrame, outPacket)) {
         memset(packetOut, 0, sizeof(OutputPacket_t));
 
-        packetOut->data = (char *)mpp_packet_get_pos(outPacket);
+        packetOut->data = mpp_packet_get_pos(outPacket);
         packetOut->size = mpp_packet_get_length(outPacket);
         packetOut->handle = outPacket;
 
@@ -620,7 +620,7 @@ bool MpiJpegEncoder::encodeThumbImage(EncInInfo *inInfo, OutputPacket_t *packetO
     if (runFrameEnc(inFrame, outPacket)) {
         memset(packetOut, 0, sizeof(packetOut));
 
-        packetOut->data = (char *)mpp_packet_get_data(outPacket);
+        packetOut->data = mpp_packet_get_data(outPacket);
         packetOut->size = mpp_packet_get_length(outPacket);
         packetOut->handle = outPacket;
 
@@ -729,7 +729,7 @@ bool MpiJpegEncoder::encodeBigImage(
     if (runFrameEnc(inFrame, outPacket)) {
         memset(packetOut, 0, sizeof(packetOut));
 
-        packetOut->data = (char*)mpp_packet_get_pos(outPacket);
+        packetOut->data = mpp_packet_get_pos(outPacket);
         packetOut->size = mpp_packet_get_length(outPacket);
         packetOut->handle = outPacket;
 
@@ -801,7 +801,7 @@ bool MpiJpegEncoder::encode(EncInInfo *inInfo, EncOutInfo *outInfo) {
     exifInfo.exifInfo = (RkExifInfo *)inInfo->exifInfo;
     exifInfo.exifInfo->gpsInfo = (RkGPSInfo *)inInfo->gpsInfo;
     if (inInfo->doThumbNail) {
-        exifInfo.thumbData = (uint8_t *)packetOut.data;
+        exifInfo.thumbData = packetOut.data;
         exifInfo.thumbSize = packetOut.size;
     }
 
@@ -828,7 +828,7 @@ bool MpiJpegEncoder::encode(EncInInfo *inInfo, EncOutInfo *outInfo) {
         goto cleanUp;
     }
 
-    outInfo->outputVirAddr = packetOut.data;
+    outInfo->outputVirAddr = (uint8_t *)packetOut.data;
     outInfo->outBufLen = packetOut.size;
 
     /* dump output buffer if neccessary */

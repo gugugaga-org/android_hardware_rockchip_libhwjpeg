@@ -24,7 +24,7 @@
 
 typedef struct {
     /* pointer to thumbnail image */
-    uint8_t *thumbData;
+    void    *thumbData;
     int32_t  thumbSize;
 
     RkExifInfo *exifInfo;
