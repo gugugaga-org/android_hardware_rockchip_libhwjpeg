@@ -148,7 +148,11 @@ bool MpiJpegEncoder::prepareEncoder() {
     mPackets = new QList((node_destructor)mpp_packet_deinit);
 
     /* mpp memery buffer group */
-    mpp_buffer_group_get_internal(&mMemGroup, MPP_BUFFER_TYPE_ION);
+    mpp_buffer_group_get_internal(
+            &mMemGroup, (MPP_BUFFER_TYPE_DMA_HEAP | MPP_BUFFER_FLAGS_DMA32));
+    if (!mMemGroup) {
+        mpp_buffer_group_get_internal(&mMemGroup, MPP_BUFFER_TYPE_ION);
+    }
 
     mStateReady = true;
 
