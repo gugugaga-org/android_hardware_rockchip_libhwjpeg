@@ -46,7 +46,7 @@ typedef enum {
 } MppFrameColorRange;
 
 typedef enum {
-    MPP_FRAME_CHROMA_DOWN_SAMPLE_MODE_None,
+    MPP_FRAME_CHROMA_DOWN_SAMPLE_MODE_NONE,
     MPP_FRAME_CHORMA_DOWN_SAMPLE_MODE_AVERAGE,
     MPP_FRAME_CHORMA_DOWN_SAMPLE_MODE_DISCARD,
 } MppFrameChromaDownSampleMode;
@@ -158,6 +158,17 @@ typedef enum {
     MPP_CHROMA_LOC_NB,                  ///< Not part of ABI
 } MppFrameChromaLocation;
 
+typedef enum {
+    MPP_CHROMA_UNSPECIFIED,
+    MPP_CHROMA_400,
+    MPP_CHROMA_410,
+    MPP_CHROMA_411,
+    MPP_CHROMA_420,
+    MPP_CHROMA_422,
+    MPP_CHROMA_440,
+    MPP_CHROMA_444,
+} MppFrameChromaFormat;
+
 /*
  * MppFrameFormat bit flag:
  *
@@ -173,16 +184,6 @@ typedef enum {
  *
  *  NOTE: FBC format and tile format can not exist at the same time.
  */
-typedef enum {
-    MPP_CHROMA_UNSPECIFIED,
-    MPP_CHROMA_YUV400,
-    MPP_CHROMA_YUV410,
-    MPP_CHROMA_YUV411,
-    MPP_CHROMA_YUV420,
-    MPP_CHROMA_YUV422,
-    MPP_CHROMA_YUV440,
-    MPP_CHROMA_YUV444,
-} MppFrameChromaFmt;
 
 #define MPP_FRAME_FMT_MASK          (0x000fffff)
 #define MPP_FRAME_FMT_PROP_MASK     (0x0ff00000)
@@ -257,6 +258,7 @@ typedef enum {
     MPP_FMT_YUV411SP        = (MPP_FRAME_FMT_YUV + 14), /* YYYY... UV...            */
     MPP_FMT_YUV444SP        = (MPP_FRAME_FMT_YUV + 15), /* YYYY... UVUVUVUV...      */
     MPP_FMT_YUV444P         = (MPP_FRAME_FMT_YUV + 16), /* YYYY... UUUU... VVVV...  */
+    MPP_FMT_YUV444SP_10BIT  = (MPP_FRAME_FMT_YUV + 17),
     MPP_FMT_YUV_BUTT,
 
     MPP_FMT_RGB565          = (MPP_FRAME_FMT_RGB + 0),  /* 16-bit RGB               */
@@ -327,6 +329,12 @@ typedef enum MppFrameError {
      */
     MPP_FRAME_ERR_DEC_MISS_REF     = 0x0200,
 } MppFrameError;
+
+typedef enum {
+    MPP_FRAME_THUMBNAIL_NONE,
+    MPP_FRAME_THUMBNAIL_MIXED,
+    MPP_FRAME_THUMBNAIL_ONLY,
+} MppFrameThumbnailMode;
 
 #ifdef __cplusplus
 extern "C" {

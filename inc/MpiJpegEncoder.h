@@ -80,8 +80,6 @@ public:
 
     bool flushBuffer();
 
-    bool updateEncodeQuality(int32_t quant);
-
     bool updateEncodeCfg(
             int32_t width, int32_t height,
             InputFormat format = INPUT_FMT_YUV420SP, int32_t qLvl = 80,
@@ -124,7 +122,7 @@ private:
     int32_t mHorStride;
     int32_t mVerStride;
     /* coding quality - range from (10 ~ 100) */
-    int32_t mEncodeQuality;
+    int32_t mQuality;
 
     QList  *mPackets;
 

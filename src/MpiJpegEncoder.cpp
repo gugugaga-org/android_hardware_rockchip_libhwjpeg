@@ -82,7 +82,7 @@ MpiJpegEncoder::MpiJpegEncoder() :
     mHeight(0),
     mHorStride(0),
     mVerStride(0),
-    mEncodeQuality(0),
+    mQuality(0),
     mPackets(NULL),
     mInputFmt(INPUT_FMT_YUV420SP) {
     ALOGI("libhwjpeg version %s", HWJPEG_FULL_VERSION);
@@ -177,51 +177,11 @@ bool MpiJpegEncoder::flushBuffer() {
     return true;
 }
 
-bool MpiJpegEncoder::updateEncodeQuality(int32_t quant) {
-    MPP_RET err = MPP_OK;
-    MppEncCfg cfg = NULL;
-
-    if (mEncodeQuality == quant) {
-        // NO NEED
-        return true;
-    }
-
-    if (quant < 10 || quant > 99) {
-        ALOGW("invalid quality %d(10 ~ 99), set 80 default", quant);
-        quant = 80;
-    }
-
-    ALOGD("update encode quality - %d", quant);
-
-    mpp_enc_cfg_init(&cfg);
-    mMppMpi->control(mMppCtx, MPP_ENC_GET_CFG, cfg);
-
-    /* q_factor range from 1 ~ 99 */
-    mpp_enc_cfg_set_s32(cfg, "rc:mode", MPP_ENC_RC_MODE_FIXQP);
-    mpp_enc_cfg_set_s32(cfg, "jpeg:q_factor", quant);
-    mpp_enc_cfg_set_s32(cfg, "jpeg:qf_max", 99);
-    mpp_enc_cfg_set_s32(cfg, "jpeg:qf_min", 1);
-
-    err = mMppMpi->control(mMppCtx, MPP_ENC_SET_CFG, cfg);
-    if (err != MPP_OK) {
-        ALOGE("failed to set encode quality - %d", quant);
-    } else {
-        mEncodeQuality = quant;
-    }
-
-    if (cfg) {
-        mpp_enc_cfg_deinit(cfg);
-        cfg = NULL;
-    }
-
-    return !err;
-}
-
 bool MpiJpegEncoder::updateEncodeCfg(
         int32_t width, int32_t height, InputFormat format,
         int32_t qLvl, int32_t hstride, int32_t vstride) {
     MPP_RET err = MPP_OK;
-    MppEncPrepCfg prep_cfg;
+    MppEncCfg cfg;
 
     if (!mStateReady) {
         return false;
@@ -235,35 +195,48 @@ bool MpiJpegEncoder::updateEncodeCfg(
         return false;
     }
 
+    if (qLvl < 10 || qLvl > 99) {
+        ALOGW("invalid quality %d(10 ~ 99), set 80 default", qLvl);
+        qLvl = 80;
+    }
+
     hstride = (hstride > 0) ? hstride : width;
     vstride = (vstride > 0) ? vstride : height;
 
-    prep_cfg.change     = MPP_ENC_PREP_CFG_CHANGE_INPUT |
-                          MPP_ENC_PREP_CFG_CHANGE_ROTATION |
-                          MPP_ENC_PREP_CFG_CHANGE_FORMAT;
-    prep_cfg.width      = width;
-    prep_cfg.height     = height;
-    prep_cfg.hor_stride = hstride;
-    prep_cfg.ver_stride = vstride;
-    prep_cfg.format     = (MppFrameFormat)format;
-    prep_cfg.rotation   = MPP_ENC_ROT_0;
+    mpp_enc_cfg_init(&cfg);
+    mMppMpi->control(mMppCtx, MPP_ENC_GET_CFG, cfg);
 
-    err = mMppMpi->control(mMppCtx, MPP_ENC_SET_PREP_CFG, &prep_cfg);
+    mpp_enc_cfg_set_s32(cfg, "prep:width", width);
+    mpp_enc_cfg_set_s32(cfg, "prep:height", height);
+    mpp_enc_cfg_set_s32(cfg, "prep:hor_stride", hstride);
+    mpp_enc_cfg_set_s32(cfg, "prep:ver_stride", vstride);
+    mpp_enc_cfg_set_s32(cfg, "prep:format", format);
+    mpp_enc_cfg_set_s32(cfg, "prep:roattion", MPP_ENC_ROT_0);
+
+    /* q_factor range from 1 ~ 99 */
+    mpp_enc_cfg_set_s32(cfg, "rc:mode", MPP_ENC_RC_MODE_FIXQP);
+    mpp_enc_cfg_set_s32(cfg, "jpeg:q_factor", qLvl);
+    mpp_enc_cfg_set_s32(cfg, "jpeg:qf_max", 99);
+    mpp_enc_cfg_set_s32(cfg, "jpeg:qf_min", 1);
+
+    err = mMppMpi->control(mMppCtx, MPP_ENC_SET_CFG, cfg);
     if (err != MPP_OK) {
+        mpp_enc_cfg_deinit(cfg);
         ALOGE("failed to set config, err %d", err);
         return false;
     }
-
-    updateEncodeQuality(qLvl);
 
     mWidth     = width;
     mHeight    = height;
     mHorStride = hstride;
     mVerStride = vstride;
     mInputFmt  = format;
+    mQuality   = qLvl;
 
-    ALOGD("updateCfg: w %d h %d hor %d ver %d inputFmt %d",
-          mWidth, mHeight, mHorStride, mVerStride, mInputFmt);
+    mpp_enc_cfg_deinit(cfg);
+
+    ALOGD("updateCfg: w %d h %d hor %d ver %d inputFmt %d quality %d",
+          mWidth, mHeight, mHorStride, mVerStride, mInputFmt, mQuality);
 
     return true;
 }
