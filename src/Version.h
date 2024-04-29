@@ -23,7 +23,7 @@
 /* Libhwjpeg Component Verison */
 #define MAJOR_VERSION       1
 #define MINOR_VERSION       5
-#define REVISION_VERSION    3
+#define REVISION_VERSION    5
 
 #define HWJPEG_FULL_VERSION \
     VERSION_STR(MAJOR_VERSION) "." \

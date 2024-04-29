@@ -399,83 +399,101 @@ cleanUp:
         outFrameBuf = NULL;
     }
 
-    if (inPacketBuf) {
-        mpp_buffer_put(inPacketBuf);
-        inPacketBuf = NULL;
-    }
-
     if (inPacket) {
         mpp_packet_deinit(&inPacket);
         inPacket = NULL;
     }
 
     if (err != MPP_OK) {
-        mpp_frame_deinit(&outFrame);
-        outFrame = NULL;
+        if (inPacketBuf) {
+            mpp_buffer_put(inPacketBuf);
+            inPacketBuf = NULL;
+        }
+
+        if (outFrame) {
+            mpp_frame_deinit(&outFrame);
+            outFrame = NULL;
+        }
     }
 
     return !err;
 }
 
 bool MpiJpegDecoder::getoutframe(OutputFrame_t *frameOut) {
-    MPP_RET err  = MPP_OK;
-    MppTask task = NULL;
+    bool     ret   = true;
+    MPP_RET  err   = MPP_OK;
+    MppTask  task  = NULL;
+    MppFrame frame = NULL;
 
     if (!mStateReady)
         return false;
 
     /* poll and wait here */
     err = mMppMpi->poll(mMppCtx, MPP_PORT_OUTPUT, MPP_POLL_BLOCK);
-    if (err != MPP_OK ) {
+    if (err != MPP_OK) {
         ALOGE("failed to poll output task");
-        return false;
+        ret = false;
+        goto cleanUp;
     }
 
     /* output queue */
     err = mMppMpi->dequeue(mMppCtx, MPP_PORT_OUTPUT, &task);
-    if (err != MPP_OK) {
+    if (err != MPP_OK || !task) {
         ALOGE("failed to dequeue output task");
-        return false;
+        ret = false;
+        goto cleanUp;
     }
 
-    if (task) {
-        MppFrame outFrame = NULL;
-        mpp_task_meta_get_frame(task, KEY_OUTPUT_FRAME, &outFrame);
+    mpp_task_meta_get_frame(task, KEY_OUTPUT_FRAME, &frame);
 
-        memset(frameOut, 0, sizeof(frameOut));
+    /* setup output handle OutputFrame_t from MppFrame */
+    setupOutFrameFromMppFrame(frameOut, frame);
 
-        /* setup output handle OutputFrame_t from MppFrame */
-        setupOutFrameFromMppFrame(frameOut, outFrame);
+    /* output from decoder is aligned by 16, so crop it before display */
+    cropOutputFrameIfNeccessary(frameOut);
 
-        /* output from decoder is aligned by 16, so crop it before display */
-        cropOutputFrameIfNeccessary(frameOut);
+    /* dump output buffer if neccessary */
+    if ((gDecDebug & DEBUG_RECORD_OUT) && mFrameCount % 10 == 0) {
+        char fileName[60];
+        sprintf(fileName, "/data/video/dec_output_%dx%d_%d.yuv",
+                frameOut->FrameWidth, frameOut->FrameHeight, mFrameCount);
 
-        /* dump output buffer if neccessary */
-        if ((gDecDebug & DEBUG_RECORD_OUT) && mFrameCount % 10 == 0) {
-            char fileName[60];
-            sprintf(fileName, "/data/video/dec_output_%dx%d_%d.yuv",
-                    frameOut->FrameWidth, frameOut->FrameHeight, mFrameCount);
-
-            if (CommonUtil::dumpDmaFdToFile(
-                    frameOut->MemPhyAddr, frameOut->OutputSize, fileName)) {
-                ALOGD("dump output yuv [%d %d] to %s",
-                      frameOut->FrameWidth, frameOut->FrameHeight, fileName);
-            }
+        if (CommonUtil::dumpDmaFdToFile(
+                frameOut->MemPhyAddr, frameOut->OutputSize, fileName)) {
+            ALOGD("dump output yuv [%d %d] to %s",
+                  frameOut->FrameWidth, frameOut->FrameHeight, fileName);
         }
-
-        /* output queue */
-        err = mMppMpi->enqueue(mMppCtx, MPP_PORT_OUTPUT, task);
-        if (err != MPP_OK)
-            ALOGE("failed to enqueue output task");
-
-        mFrames->lock();
-        mFrames->add_at_tail(&outFrame, sizeof(outFrame));
-        mFrames->unlock();
-
-        mFrameCount++;
     }
 
-    return !err;
+    /* output queue */
+    err = mMppMpi->enqueue(mMppCtx, MPP_PORT_OUTPUT, task);
+    if (err != MPP_OK)
+        ALOGE("failed to enqueue output task");
+
+    mFrames->lock();
+    mFrames->add_at_tail(&frame, sizeof(frame));
+    mFrames->unlock();
+
+    mFrameCount++;
+
+cleanUp:
+    /* CleanUp: free input packet buffer */
+    err = mMppMpi->dequeue(mMppCtx, MPP_PORT_INPUT, &task);
+    if (err == MPP_OK && task) {
+        MppPacket packet = NULL;
+        mpp_task_meta_get_packet(task, KEY_INPUT_PACKET, &packet);
+
+        mpp_packet_deinit(&packet);
+
+        err = mMppMpi->enqueue(mMppCtx, MPP_PORT_INPUT, task);
+        if (err != MPP_OK)
+            ALOGE("failed to enqueue input task");
+
+    } else {
+        ALOGE("failed to free input packet buffer");
+    }
+
+    return ret;
 }
 
 bool MpiJpegDecoder::deinitOutputFrame(OutputFrame_t *frameOut) {
