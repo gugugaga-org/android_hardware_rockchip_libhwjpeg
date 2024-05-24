@@ -115,6 +115,12 @@ private:
     MppBufferGroup mMemGroup;
 
     bool    mStateReady;
+    /*
+     * TODO: Workround for rk3576 9.0 mmap error
+     * allocator of encoder not compatible with gralloc dma lock\unlock.
+     * use internal output buffer to workround this issue.
+     */
+    bool    mMemWorkround;
     int32_t mFrameCount;
 
     int32_t mWidth;

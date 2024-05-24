@@ -25,6 +25,7 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <cutils/properties.h>
 
 #include "mpp_mem.h"
 #include "Utils.h"
@@ -195,3 +196,18 @@ bool CommonUtil::setPerformanceMode(int on) {
 
     return true;
 }
+
+bool CommonUtil::needMemWrokround() {
+    char sdkVerProp[PROPERTY_VALUE_MAX];
+    char socNameProp[PROPERTY_VALUE_MAX];
+
+    property_get("ro.build.version.sdk", sdkVerProp, "null");
+    property_get("ro.board.platform", socNameProp, "null");
+    if (strstr(sdkVerProp, "28") != NULL
+            && strstr(socNameProp, "rk3576") != NULL) {
+        return true;
+    }
+
+    return false;
+}
+

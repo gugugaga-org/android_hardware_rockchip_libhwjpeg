@@ -77,6 +77,7 @@ MpiJpegEncoder::MpiJpegEncoder() :
     mMppMpi(NULL),
     mMemGroup(NULL),
     mStateReady(false),
+    mMemWorkround(false),
     mFrameCount(0),
     mWidth(0),
     mHeight(0),
@@ -88,6 +89,11 @@ MpiJpegEncoder::MpiJpegEncoder() :
     ALOGI("libhwjpeg version %s", HWJPEG_FULL_VERSION);
 
     gEncDebug = property_get_int32("hwjpeg_enc_debug", 0);
+
+    if (CommonUtil::needMemWrokround()) {
+        ALOGD("open memery workround mode");
+        mMemWorkround = true;
+    }
 }
 
 MpiJpegEncoder::~MpiJpegEncoder() {
@@ -685,18 +691,31 @@ bool MpiJpegEncoder::encodeBigImage(
     }
 
     {
-        /* import output buffer */
-        MppBufferInfo output;
-        memset(&output, 0, sizeof(MppBufferInfo));
+        if (mMemWorkround) {
+            /*
+             * TODO: Workround for rk3576 9.0 mmap error
+             * allocator of encoder not compatible with gralloc dma lock\unlock.
+             * use internal output buffer to workround this issue.
+             */
+            err = mpp_buffer_get(mMemGroup, &outPacketBuf, outBuffer->size);
+            if (err != MPP_OK) {
+                ALOGE("failed to get output buffer");
+                goto cleanUp;
+            }
+        } else {
+            /* import output buffer */
+            MppBufferInfo output;
+            memset(&output, 0, sizeof(MppBufferInfo));
 
-        output.size = outBuffer->size;
-        output.fd   = outBuffer->fd;
-        output.type = (MppBufferType)(MPP_BUFFER_TYPE_ION | MPP_BUFFER_FLAGS_CACHABLE);
+            output.size = outBuffer->size;
+            output.fd   = outBuffer->fd;
+            output.type = (MppBufferType)(MPP_BUFFER_TYPE_ION | MPP_BUFFER_FLAGS_CACHABLE);
 
-        err = mpp_buffer_import(&outPacketBuf, &output);
-        if (err != MPP_OK) {
-            ALOGE("failed to import output buffer");
-            goto cleanUp;
+            err = mpp_buffer_import(&outPacketBuf, &output);
+            if (err != MPP_OK) {
+                ALOGE("failed to import output buffer");
+                goto cleanUp;
+            }
         }
         mpp_packet_init_with_buffer(&outPacket, outPacketBuf);
         /* NOTE: It is important to clear output packet length */
@@ -805,7 +824,12 @@ bool MpiJpegEncoder::encode(EncInInfo *inInfo, EncOutInfo *outInfo) {
         goto cleanUp;
     }
 
-    outInfo->outputVirAddr = (uint8_t *)packetOut.data;
+    if (mMemWorkround) {
+        memcpy(outInfo->outputVirAddr, packetOut.data, packetOut.size);
+    } else {
+        outInfo->outputVirAddr = (uint8_t *)packetOut.data;
+    }
+
     outInfo->outBufLen = packetOut.size;
 
     /* dump output buffer if neccessary */

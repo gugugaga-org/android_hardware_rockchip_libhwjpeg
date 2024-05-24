@@ -43,6 +43,7 @@ public:
     /* other util methods */
     static bool isValidDmaFd(int fd);
     static bool setPerformanceMode(int on);
+    static bool needMemWrokround();
 };
 
 #endif //__UTILS_H__
