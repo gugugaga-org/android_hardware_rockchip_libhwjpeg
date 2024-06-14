@@ -399,15 +399,15 @@ cleanUp:
         outFrameBuf = NULL;
     }
 
-    if (inPacket) {
-        mpp_packet_deinit(&inPacket);
-        inPacket = NULL;
+    if (inPacketBuf) {
+        mpp_buffer_put(inPacketBuf);
+        inPacketBuf = NULL;
     }
 
     if (err != MPP_OK) {
-        if (inPacketBuf) {
-            mpp_buffer_put(inPacketBuf);
-            inPacketBuf = NULL;
+        if (inPacket) {
+            mpp_packet_deinit(&inPacket);
+            inPacket = NULL;
         }
 
         if (outFrame) {
